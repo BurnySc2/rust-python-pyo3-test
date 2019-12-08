@@ -58,6 +58,7 @@ jobs:
 
     - name: Create archive for Linux
       run: |
+        sudo apt-get install tree
         tree target/release
         7z a -ttar -so -an ./target/release/${{ env.RELEASE_BIN }} ${{ env.RELEASE_ADDS }} | 7z a -si ./artifacts/${{ env.RELEASE_BIN }}-linux-x86_64.tar.gz
       if: matrix.os == 'ubuntu-latest'
