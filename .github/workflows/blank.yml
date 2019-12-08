@@ -1,14 +1,14 @@
 on: [push]
 
-env:
-  # Could, potentially automatically parse
-  # the bin name, but let's do it automatically for now.
-  RELEASE_LIB: my_library
-
-  # Space separated paths to include in the archive.
-  # Start relative paths with a dot if you don't want
-  # paths to be preserved. Use "/" as a delimiter.
-  RELEASE_ADDS: README.md LICENSE
+#env:
+#  # Could, potentially automatically parse
+#  # the bin name, but let's do it automatically for now.
+#  RELEASE_LIB: my_library
+#
+#  # Space separated paths to include in the archive.
+#  # Start relative paths with a dot if you don't want
+#  # paths to be preserved. Use "/" as a delimiter.
+#  RELEASE_ADDS: README.md LICENSE
 
 
 jobs:
@@ -19,7 +19,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macOS-latest]
+        os: [ubuntu-latest, windows-latest]
+#        os: [ubuntu-latest, windows-latest, macOS-latest]
         rust: [nightly]
 
     steps:
@@ -37,19 +38,6 @@ jobs:
       with:
         command: check
 
-#    - name: Install Rust (rustup)
-#      run: rustup update ${{ matrix.rust }} --no-self-update && rustup default ${{ matrix.rust }}
-#      if: matrix.os != 'macos-latest'
-#      shell: bash
-#
-#    - name: Install Rust (macos)
-#      # As of 7.12.2019 rust is not installed on MacOS
-#      # https://help.github.com/en/actions/automating-your-workflow-with-github-actions/software-installed-on-github-hosted-runners#macos-1015
-#      run: |
-#        curl https://sh.rustup.rs | sh -s -- -y
-#        echo "##[add-path]$HOME/.cargo/bin"
-#      if: matrix.os == 'macos-latest'
-
     - name: Build
       run: cargo build --verbose --release
 
@@ -60,23 +48,27 @@ jobs:
       run: |
         sudo apt-get install tree
         tree target/release
-        7z a -ttar -so -an ./target/release/libmy_library.so ${{ env.RELEASE_ADDS }} | 7z a -si ./artifacts/${{ env.RELEASE_LIB }}-linux-x86_64.tar.gz
+        mv ./artifacts/libmy_library.so ./artifacts/my_lib.so
+#        7z a -ttar -so -an ./target/release/libmy_library.so ${{ env.RELEASE_ADDS }} | 7z a -si ./artifacts/${{ env.RELEASE_LIB }}-linux-x86_64.tar.gz
       if: matrix.os == 'ubuntu-latest'
 
     - name: Create archive for Windows
       run: |
         dir target/release
-        7z a -tzip ./artifacts/${{ env.RELEASE_LIB }}-windows-x86_64.zip ./target/release/my_library.dll ${{ env.RELEASE_ADDS }}
+        move ./target/release/my_library.dll ./artifacts/my_lib.pyd
+#        7z a -tzip ./artifacts/${{ env.RELEASE_LIB }}-windows-x86_64.zip ./target/release/my_library.dll
       if: matrix.os == 'windows-latest'
 
-    - name: Install p7zip
-      # 7Zip not available on MacOS, install p7zip via homebrew.
-      run: brew install p7zip
-      if: matrix.os == 'macos-latest'
+#    - name: Install p7zip
+#      # 7Zip not available on MacOS, install p7zip via homebrew.
+#      run: brew install p7zip
+#      if: matrix.os == 'macos-latest'
 
-    - name: Create archive for MacOS
-      run: 7z a -tzip ./artifacts/${{ env.RELEASE_LIB }}-mac-x86_64.zip ./target/release/${{ env.RELEASE_LIB }} ${{ env.RELEASE_ADDS }}
-      if: matrix.os == 'macos-latest'
+#    - name: Create archive for MacOS
+#      run: |
+#        ls target/release
+#        7z a -tzip ./artifacts/${{ env.RELEASE_LIB }}-mac-x86_64.zip ./target/release/${{ env.RELEASE_LIB }} ${{ env.RELEASE_ADDS }}
+#      if: matrix.os == 'macos-latest'
 
     # This will double-zip
     # See - https://github.com/actions/upload-artifact/issues/39
