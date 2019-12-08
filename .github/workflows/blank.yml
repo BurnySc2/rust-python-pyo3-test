@@ -22,7 +22,7 @@ jobs:
         os: [ubuntu-latest, windows-latest]
 #        os: [ubuntu-latest, windows-latest, macOS-latest]
         rust: [nightly]
-        python-version: [3.7, 3.8]
+        python-version: [3.5, 3.6, 3.7, 3.8]
 
     steps:
     # https://github.com/actions-rs/toolchain
