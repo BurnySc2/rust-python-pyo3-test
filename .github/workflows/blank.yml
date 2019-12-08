@@ -1,5 +1,3 @@
-name: CI
-
 on: [push]
 
 env:
@@ -18,13 +16,26 @@ jobs:
     name: Build release
 
     runs-on: ${{ matrix.os }}
+    fail-fast: false
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macOS-latest]
         rust: [nightly]
 
     steps:
+    # https://github.com/actions-rs/toolchain
     - uses: actions/checkout@v1
+      -
+    - name: Install latest nightly
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: nightly
+        override: true
+
+    - name: Run cargo check
+      uses: actions-rs/cargo@v1
+      with:
+        command: check
 
 #    - name: Install Rust (rustup)
 #      run: rustup update ${{ matrix.rust }} --no-self-update && rustup default ${{ matrix.rust }}
