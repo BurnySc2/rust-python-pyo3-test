@@ -48,7 +48,7 @@ jobs:
       run: |
         sudo apt-get install tree
         tree target/release
-        mv ./artifacts/libmy_library.so ./artifacts/my_lib.so
+        mv ./target/release/libmy_library.so ./artifacts/my_lib.so
 #        7z a -ttar -so -an ./target/release/libmy_library.so ${{ env.RELEASE_ADDS }} | 7z a -si ./artifacts/${{ env.RELEASE_LIB }}-linux-x86_64.tar.gz
       if: matrix.os == 'ubuntu-latest'
 
@@ -59,18 +59,6 @@ jobs:
 #        7z a -tzip ./artifacts/${{ env.RELEASE_LIB }}-windows-x86_64.zip ./target/release/my_library.dll
       if: matrix.os == 'windows-latest'
 
-#    - name: Install p7zip
-#      # 7Zip not available on MacOS, install p7zip via homebrew.
-#      run: brew install p7zip
-#      if: matrix.os == 'macos-latest'
-
-#    - name: Create archive for MacOS
-#      run: |
-#        ls target/release
-#        7z a -tzip ./artifacts/${{ env.RELEASE_LIB }}-mac-x86_64.zip ./target/release/${{ env.RELEASE_LIB }} ${{ env.RELEASE_ADDS }}
-#      if: matrix.os == 'macos-latest'
-
-    # This will double-zip
     # See - https://github.com/actions/upload-artifact/issues/39
     - uses: actions/upload-artifact@v1
       name: Upload archive
