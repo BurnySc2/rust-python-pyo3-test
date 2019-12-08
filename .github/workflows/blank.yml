@@ -25,7 +25,7 @@ jobs:
     steps:
     # https://github.com/actions-rs/toolchain
     - uses: actions/checkout@v1
-      -
+
     - name: Install latest nightly
       uses: actions-rs/toolchain@v1
       with:
