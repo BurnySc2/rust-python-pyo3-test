@@ -56,8 +56,8 @@ jobs:
     - name: Create archive for Windows
       run: |
         dir target/release
-        move.py ${{ matrix.python-version }}
-        move ./target/release/my_library.dll ./artifacts/my_lib.pyd
+        python move.py ${{ matrix.python-version }}
+#        move ./target/release/my_library.dll ./artifacts/my_lib.pyd
 #        move ./target/release/my_library.dll ./artifacts/my_lib.cp${{}}.pyd
 #        7z a -tzip ./artifacts/${{ env.RELEASE_LIB }}-windows-x86_64.zip ./target/release/my_library.dll
       if: matrix.os == 'windows-latest'
