@@ -26,17 +26,6 @@ jobs:
     # https://github.com/actions-rs/toolchain
     - uses: actions/checkout@v1
 
-    - name: Install latest nightly
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: nightly
-        override: true
-
-    - name: Run cargo check
-      uses: actions-rs/cargo@v1
-      with:
-        command: check
-
     - name: Cache cargo registry
       uses: actions/cache@v1
       with:
@@ -52,6 +41,18 @@ jobs:
       with:
         path: target
         key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Install latest nightly
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: nightly
+        override: true
+
+    - name: Run cargo check
+      uses: actions-rs/cargo@v1
+      with:
+        command: check
+
 
 #    - name: Install Rust (rustup)
 #      run: rustup update ${{ matrix.rust }} --no-self-update && rustup default ${{ matrix.rust }}
