@@ -56,8 +56,9 @@ jobs:
       with:
         command: check
 
-#    - name: Test
-#      run: cargo test --verbose --release
+    - name: Test
+      run: cargo test --verbose --release
+      if: matrix.os == 'windows-latest'
 
     - name: Build
       run: cargo build --verbose --release
