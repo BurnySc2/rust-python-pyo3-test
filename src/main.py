@@ -8,6 +8,10 @@ def my_factorial(n):
         return 1
     return n * my_factorial(n - 1)
 
+class Point2:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
 
 input = 34
 t1 = time.perf_counter()
@@ -24,7 +28,7 @@ string_output = my_library.sum_as_string(7, 6)
 assert string_output == "13"
 
 
-p1 = my_library.Point2d.origin()
+p1 = my_library.Point2d(0, 0)
 print(p1)
 p2 = my_library.Point2d(3.0, 4.0)
 print(p2)
@@ -32,6 +36,33 @@ dist = p1.distance_to(p2)
 print(dist)
 dist_squared = p1.distance_to_squared(p2)
 print(dist_squared)
+
+ps = my_library.Point2Collection([p1, p2])
+print(f"Amount of points in the list: {ps.len()}")
+# Add a Python Point2 point to the list of points
+p3 = Point2(7, 8)
+ps.append(p3)
+ps.append(p1)
+print(f"Amount of points in the list: {ps.len()}")
+# This does not do anything:
+ps.points.append(p3)
+print(f"Amount of points in the list: {ps.len()}")
+# However you can set the list directly
+# ps.points = [Point2(1, 2), Point2(2, 3), Point2(3, 4)]
+# print(f"Amount of points in the list: {ps.len()}")
+print()
+print(f"The points in the list:")
+ps.print()
+
+p4 = my_library.Point2d(9, 10)
+closest_point = ps.closest_point(p4)
+# This should raise a proper error
+# closest_point = my_library.Point2Collection([]).closest_point(p4)
+print(f"Closest point: {closest_point}")
+
+# print(type(ps))
+# for p in ps.points:
+#     print(type(p))
 
 
 my_list = [0, 1, 2, 3, 4]

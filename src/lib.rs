@@ -6,17 +6,37 @@
 #![feature(test)]
 extern crate test;
 
+//#[allow(dead_code)]
+
 use pyo3::prelude::*;
-use pyo3::wrap_pyfunction;
+use pyo3::{wrap_pyfunction};
+use pyo3::types::{PyAny};
+#[allow(unused_imports)]
+use pyo3::derive_utils::IntoPyResult;
+#[allow(unused_imports)]
+use pyo3::types::PyDict;
+#[allow(unused_imports)]
+use pyo3::exceptions;
+#[allow(unused_imports)]
+use pyo3::PyObjectProtocol;
+#[allow(unused_imports)]
+use pyo3::PyIterProtocol;
 // https://github.com/PyO3/pyo3
 
 
+// import inspect
+// print(inspect.signature(my_library.Point2d))
+
 #[pyclass]
+#[derive(Copy, Clone, Debug)]
+#[text_signature = "(x, y, /)"]
 pub struct Point2d {
+    // For the .x and .y attributes to be accessable in python, it requires these macros
+    #[pyo3(get, set)]
     x: f64,
+    #[pyo3(get, set)]
     y: f64,
 }
-
 
 #[pymethods]
 impl Point2d {
@@ -24,21 +44,89 @@ impl Point2d {
     fn new(obj: &PyRawObject, x_: f64, y_: f64) {
         obj.init(Point2d { x: x_, y: y_ })
     }
-
-    #[staticmethod]
-    fn origin() -> Point2d {
-        Point2d { x: 0.0, y: 0.0 }
-    }
-
+    #[text_signature = "(&self, other, /)"]
     fn distance_to(&self, other: &Point2d) -> f64 {
         ((self.x - other.x).powi(2) + (self.y - other.y).powi(2)).sqrt()
     }
-
     fn distance_to_squared(&self, other: &Point2d) -> f64 {
         (self.x - other.x).powi(2) + (self.y - other.y).powi(2)
     }
 }
 
+// Implements the repr function for Point2d class: https://pyo3.rs/v0.8.4/class.html#string-conversions
+#[pyproto]
+impl PyObjectProtocol for Point2d {
+    fn __repr__(&self) -> PyResult<String> {
+        Ok(format!("Point2d ( x: {:?}, y: {:?} )", self.x, self.y))
+    }
+}
+
+// Necessary function implementation to convert a Point2 from python to rust
+/*
+class Point2:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+# This class can now be used in rust as Point2d
+*/
+impl<'source> FromPyObject<'source> for Point2d{
+	fn extract(ob: &'source PyAny)-> PyResult<Point2d>{
+        unsafe {
+            let py = Python::assume_gil_acquired();
+            let obj = ob.to_object(py);
+            Ok(Self {
+                x: obj.getattr(py, "x")?.extract(py)?,
+                y: obj.getattr(py, "y")?.extract(py)?,
+            })
+        }
+	}
+}
+
+// The name of the class can be changed here, e.g. 'name=MyPoints' and will then be available through my_library.MyPoints instead
+#[pyclass(name=Point2Collection)]
+pub struct Point2Collection {
+    #[pyo3(get)]
+    points: Vec<Point2d>,
+}
+
+#[pymethods]
+impl Point2Collection {
+    #[new]
+    fn new(obj: &PyRawObject, _points:  Vec<&Point2d>){
+        let new_vec: Vec<Point2d> = _points.into_iter().map(|f| f.clone()).collect();
+        obj.init(Point2Collection{points: new_vec})
+    }
+
+    fn len(&self) -> PyResult<usize>{
+       Ok(self.points.len())
+    }
+
+    fn append(&mut self, _point: Point2d) {
+        self.points.push(_point);
+    }
+
+    fn print(&self) {
+        for i in self.points.clone() {
+            println!("{:?}", i);
+        }
+    }
+
+    fn closest_point(&self, other: &Point2d) -> Point2d {
+        // TODO raise error when list of points is empty
+        assert!(self.points.len() > 0);
+        let mut iterable = self.points.clone().into_iter();
+        let mut closest = iterable.next().unwrap();
+        let mut distance_sq_closest = closest.distance_to_squared(other);
+        for p in iterable {
+            let p_distance_sq = p.distance_to_squared(other);
+            if p_distance_sq < distance_sq_closest {
+                closest = p;
+                distance_sq_closest = p_distance_sq;
+            }
+        }
+        closest
+    }
+}
 
 #[pyfunction]
 /// Formats the sum of two numbers as string
@@ -46,17 +134,15 @@ fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
     Ok((a + b).to_string())
 }
 
-
 // Iterative approach
-//#[pyfunction]
-//fn factorial(input: u128) -> u128 {
-//    let mut result = 1;
-//    for i in 2..input+1 {
-//        result *= i
-//    }
-//    result
-//}
-
+#[pyfunction]
+fn factorial_iter(input: u128) -> u128 {
+    let mut result = 1;
+    for i in 2..input+1 {
+        result *= i
+    }
+    result
+}
 
 // Fairly identical to the function above, recursive approach
 #[pyfunction]
@@ -67,27 +153,21 @@ fn factorial(input: u128) -> u128 {
     input * factorial(input - 1)
 }
 
-#[pyfunction]
-fn distance(x0: f32, y0: f32, x1: f32, y1: f32) -> f32 {
-    (x1 - x0).powi(2) + (y1 - y0).powi(2).sqrt()
-}
-
-#[pyfunction]
-fn distance_squared(x0: f32, y0: f32, x1: f32, y1: f32) -> f32 {
-    (x1 - x0).powi(2) + (y1 - y0).powi(2)
-}
-
 
 /// This module is a python module implemented in Rust.
 /// This function name has to be the same as the lib.name declared in Cargo.toml
 #[pymodule]
 fn my_library(_py: Python, m: &PyModule) -> PyResult<()> {
     // Add all functions and classes (structs) here that need to be exported and callable via Python
+
+    // Functions to be exported
     m.add_wrapped(wrap_pyfunction!(sum_as_string))?;
     m.add_wrapped(wrap_pyfunction!(factorial))?;
-    m.add_wrapped(wrap_pyfunction!(distance))?;
-    m.add_wrapped(wrap_pyfunction!(distance_squared))?;
+    m.add_wrapped(wrap_pyfunction!(factorial_iter))?;
+
+    // Classes to be exported
     m.add_class::<Point2d>()?;
+    m.add_class::<Point2Collection>()?;
 
     Ok(())
 }
@@ -104,5 +184,6 @@ mod tests {
         assert_eq!(2, factorial(2));
         assert_eq!(6, factorial(3));
         assert_eq!(24, factorial(4));
+        assert_eq!(24, factorial_iter(4));
     }
 }

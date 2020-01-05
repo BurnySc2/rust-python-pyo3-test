@@ -39,19 +39,23 @@ jobs:
       with:
         command: check
 
+    - name: Test
+      run: cargo test --verbose --release
+
     - name: Build
       run: cargo build --verbose --release
 
     - name: Create artifact directory
       run: mkdir artifacts
 
+    # TODO only one .so file needs to be built and it can be run from any python version on the linux distribution, and this probably also works on mac
     - name: Create archive for Linux
       run: |
         sudo apt-get install tree
         tree target/release
-        mv ./target/release/libmy_library.so ./artifacts/my_lib.so
+        mv ./target/release/libmy_library.so ./artifacts/my_library.so
 #        7z a -ttar -so -an ./target/release/libmy_library.so ${{ env.RELEASE_ADDS }} | 7z a -si ./artifacts/${{ env.RELEASE_LIB }}-linux-x86_64.tar.gz
-      if: matrix.os == 'ubuntu-latest'
+      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.7'
 
     - name: Create archive for Windows
       run: |
