@@ -1,3 +1,4 @@
+name: RustBuild
 on: [push]
 
 #env:

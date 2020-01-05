@@ -11,16 +11,7 @@ extern crate test;
 use pyo3::prelude::*;
 use pyo3::{wrap_pyfunction};
 use pyo3::types::{PyAny};
-#[allow(unused_imports)]
-use pyo3::derive_utils::IntoPyResult;
-#[allow(unused_imports)]
-use pyo3::types::PyDict;
-#[allow(unused_imports)]
-use pyo3::exceptions;
-#[allow(unused_imports)]
 use pyo3::PyObjectProtocol;
-#[allow(unused_imports)]
-use pyo3::PyIterProtocol;
 // https://github.com/PyO3/pyo3
 
 
@@ -176,6 +167,7 @@ fn my_library(_py: Python, m: &PyModule) -> PyResult<()> {
 #[cfg(test)] // Only compiles when running tests
 mod tests {
     use super::*;
+    #[allow(unused_imports)]
     use test::Bencher;
 
     // This will only be executed when using "cargo test" and not "cargo bench"
