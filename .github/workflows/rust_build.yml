@@ -89,3 +89,4 @@ jobs:
       with:
         name: ${{ matrix.os }}_python${{ matrix.python-version }}
         path: artifacts/
+      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.7' || matrix.os == 'windows-latest'
