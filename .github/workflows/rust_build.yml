@@ -56,8 +56,8 @@ jobs:
       with:
         command: check
 
-    - name: Test
-      run: cargo test --verbose --release
+#    - name: Test
+#      run: cargo test --verbose --release
 
     - name: Build
       run: cargo build --verbose --release
