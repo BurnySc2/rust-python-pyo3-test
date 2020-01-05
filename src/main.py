@@ -64,7 +64,13 @@ print(f"Closest point: {closest_point}")
 # for p in ps.points:
 #     print(type(p))
 
-
+# Test numpy arrays
 my_list = [0, 1, 2, 3, 4]
-my_array = np.asarray([0, 1, 2, 3, 4])
+my_array = np.asarray([0, 1, 2, 3, 4, 5]).astype(float)
+my_array2 = np.asarray([0, 1, 2, 3, 4, 5]).astype(float)
 # TODO: read numpy arrays in rust functions / structs
+my_array3 = my_library.mult_with_return_py(5, my_array2)
+my_library.mult_mutable_py(5, my_array)
+print(my_array)
+print(my_array3)
+assert my_array == my_array3

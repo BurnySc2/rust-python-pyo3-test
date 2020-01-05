@@ -1,6 +1,10 @@
 // This will will be exported when using "cargo build" command
 // It should create a my_library.dll (windows) file in the target/debug folder
 
+/* Introduction / Helper websites:
+https://pyo3.rs/
+https://docs.rs/pyo3/0.8.4/pyo3/index.html
+*/
 
 // Testing and benchmark crate
 #![feature(test)]
@@ -9,11 +13,10 @@ extern crate test;
 //#[allow(dead_code)]
 
 use pyo3::prelude::*;
-use pyo3::{wrap_pyfunction};
-use pyo3::types::{PyAny};
+use pyo3::types::PyAny;
+use pyo3::wrap_pyfunction;
 use pyo3::PyObjectProtocol;
 // https://github.com/PyO3/pyo3
-
 
 // import inspect
 // print(inspect.signature(my_library.Point2d))
@@ -44,7 +47,7 @@ impl Point2d {
     }
 }
 
-// Implements the repr function for Point2d class: https://pyo3.rs/v0.8.4/class.html#string-conversions
+/// Implements the repr function for Point2d class: https://pyo3.rs/v0.8.4/class.html#string-conversions
 #[pyproto]
 impl PyObjectProtocol for Point2d {
     fn __repr__(&self) -> PyResult<String> {
@@ -60,8 +63,8 @@ class Point2:
         self.y = y
 # This class can now be used in rust as Point2d
 */
-impl<'source> FromPyObject<'source> for Point2d{
-	fn extract(ob: &'source PyAny)-> PyResult<Point2d>{
+impl<'source> FromPyObject<'source> for Point2d {
+    fn extract(ob: &'source PyAny) -> PyResult<Point2d> {
         unsafe {
             let py = Python::assume_gil_acquired();
             let obj = ob.to_object(py);
@@ -70,7 +73,7 @@ impl<'source> FromPyObject<'source> for Point2d{
                 y: obj.getattr(py, "y")?.extract(py)?,
             })
         }
-	}
+    }
 }
 
 // The name of the class can be changed here, e.g. 'name=MyPoints' and will then be available through my_library.MyPoints instead
@@ -83,13 +86,13 @@ pub struct Point2Collection {
 #[pymethods]
 impl Point2Collection {
     #[new]
-    fn new(obj: &PyRawObject, _points:  Vec<&Point2d>){
+    fn new(obj: &PyRawObject, _points: Vec<&Point2d>) {
         let new_vec: Vec<Point2d> = _points.into_iter().map(|f| f.clone()).collect();
-        obj.init(Point2Collection{points: new_vec})
+        obj.init(Point2Collection { points: new_vec })
     }
 
-    fn len(&self) -> PyResult<usize>{
-       Ok(self.points.len())
+    fn len(&self) -> PyResult<usize> {
+        Ok(self.points.len())
     }
 
     fn append(&mut self, _point: Point2d) {
@@ -119,31 +122,63 @@ impl Point2Collection {
     }
 }
 
+use ndarray::{ArrayD, ArrayViewD, ArrayViewMutD};
+use numpy::{IntoPyArray, PyArrayDyn};
+// Numpy examples
+
+// immutable example
+fn mult_with_return(a: f64, x: ArrayViewD<f64>) -> ArrayD<f64> {
+    &x * a
+    // Also works:
+    // a * &x
+}
+
+// mutable example (no return)
+fn mult_mutable(a: f64, mut x: ArrayViewMutD<f64>) {
+    x *= a;
+}
+
+// wrapper of `axpy`
 #[pyfunction]
+fn mult_with_return_py(py: Python, a: f64, x: &PyArrayDyn<f64>) -> Py<PyArrayDyn<f64>> {
+    let x = x.as_array();
+    mult_with_return(a, x).into_pyarray(py).to_owned()
+}
+
+// wrapper of `mult`
+#[pyfunction]
+fn mult_mutable_py(_py: Python, a: f64, x: &PyArrayDyn<f64>) -> PyResult<()> {
+    let x = x.as_array_mut();
+    mult_mutable(a, x);
+    Ok(())
+}
+
+// Simple examples
+
 /// Formats the sum of two numbers as string
+#[pyfunction]
 fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
     Ok((a + b).to_string())
 }
 
-// Iterative approach
+/// Iterative approach of calculating a factorial
 #[pyfunction]
 fn factorial_iter(input: u128) -> u128 {
     let mut result = 1;
-    for i in 2..input+1 {
+    for i in 2..input + 1 {
         result *= i
     }
     result
 }
 
-// Fairly identical to the function above, recursive approach
+/// Recursive approach of calculating a factorial
 #[pyfunction]
 fn factorial(input: u128) -> u128 {
     if input == 1 {
-        return 1u128
+        return 1u128;
     }
     input * factorial(input - 1)
 }
-
 
 /// This module is a python module implemented in Rust.
 /// This function name has to be the same as the lib.name declared in Cargo.toml
@@ -155,6 +190,8 @@ fn my_library(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(sum_as_string))?;
     m.add_wrapped(wrap_pyfunction!(factorial))?;
     m.add_wrapped(wrap_pyfunction!(factorial_iter))?;
+    m.add_wrapped(wrap_pyfunction!(mult_with_return_py))?;
+    m.add_wrapped(wrap_pyfunction!(mult_mutable_py))?;
 
     // Classes to be exported
     m.add_class::<Point2d>()?;
@@ -162,7 +199,6 @@ fn my_library(_py: Python, m: &PyModule) -> PyResult<()> {
 
     Ok(())
 }
-
 
 #[cfg(test)] // Only compiles when running tests
 mod tests {
