@@ -123,36 +123,36 @@ impl Point2Collection {
     }
 }
 
-use ndarray::{ArrayD, ArrayViewD, ArrayViewMutD};
-use numpy::{IntoPyArray, PyArrayDyn};
-// Numpy examples
-
-// immutable example
-fn mult_with_return(a: f64, x: ArrayViewD<f64>) -> ArrayD<f64> {
-    &x * a
-    // Also works:
-    // a * &x
-}
-
-// mutable example (no return)
-fn mult_mutable(a: f64, mut x: ArrayViewMutD<f64>) {
-    x *= a;
-}
-
-// wrapper of `axpy`
-#[pyfunction]
-fn mult_with_return_py(py: Python, a: f64, x: &PyArrayDyn<f64>) -> Py<PyArrayDyn<f64>> {
-    let x = x.as_array();
-    mult_with_return(a, x).into_pyarray(py).to_owned()
-}
-
-// wrapper of `mult`
-#[pyfunction]
-fn mult_mutable_py(_py: Python, a: f64, x: &PyArrayDyn<f64>) -> PyResult<()> {
-    let x = x.as_array_mut();
-    mult_mutable(a, x);
-    Ok(())
-}
+//use ndarray::{ArrayD, ArrayViewD, ArrayViewMutD};
+//use numpy::{IntoPyArray, PyArrayDyn};
+//// Numpy examples
+//
+//// immutable example
+//fn mult_with_return(a: f64, x: ArrayViewD<f64>) -> ArrayD<f64> {
+//    &x * a
+//    // Also works:
+//    // a * &x
+//}
+//
+//// mutable example (no return)
+//fn mult_mutable(a: f64, mut x: ArrayViewMutD<f64>) {
+//    x *= a;
+//}
+//
+//// wrapper of `axpy`
+//#[pyfunction]
+//fn mult_with_return_py(py: Python, a: f64, x: &PyArrayDyn<f64>) -> Py<PyArrayDyn<f64>> {
+//    let x = x.as_array();
+//    mult_with_return(a, x).into_pyarray(py).to_owned()
+//}
+//
+//// wrapper of `mult`
+//#[pyfunction]
+//fn mult_mutable_py(_py: Python, a: f64, x: &PyArrayDyn<f64>) -> PyResult<()> {
+//    let x = x.as_array_mut();
+//    mult_mutable(a, x);
+//    Ok(())
+//}
 
 mod pathfinding;
 // Simple examples
@@ -192,8 +192,8 @@ fn my_library(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(sum_as_string))?;
     m.add_wrapped(wrap_pyfunction!(factorial))?;
     m.add_wrapped(wrap_pyfunction!(factorial_iter))?;
-    m.add_wrapped(wrap_pyfunction!(mult_with_return_py))?;
-    m.add_wrapped(wrap_pyfunction!(mult_mutable_py))?;
+//    m.add_wrapped(wrap_pyfunction!(mult_with_return_py))?;
+//    m.add_wrapped(wrap_pyfunction!(mult_mutable_py))?;
 
     // Classes to be exported
     m.add_class::<Point2>()?;
