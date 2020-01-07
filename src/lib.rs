@@ -6,6 +6,7 @@ https://pyo3.rs/
 https://docs.rs/pyo3/0.8.4/pyo3/index.html
 */
 
+#![feature(cell_update)]
 // Testing and benchmark crate
 #![feature(test)]
 extern crate test;
@@ -19,12 +20,12 @@ use pyo3::PyObjectProtocol;
 // https://github.com/PyO3/pyo3
 
 // import inspect
-// print(inspect.signature(my_library.Point2d))
+// print(inspect.signature(my_library.Point2))
 
 #[pyclass]
 #[derive(Copy, Clone, Debug)]
 #[text_signature = "(x, y, /)"]
-pub struct Point2d {
+pub struct Point2 {
     // For the .x and .y attributes to be accessable in python, it requires these macros
     #[pyo3(get, set)]
     x: f64,
@@ -33,25 +34,25 @@ pub struct Point2d {
 }
 
 #[pymethods]
-impl Point2d {
+impl Point2 {
     #[new]
     fn new(obj: &PyRawObject, x_: f64, y_: f64) {
-        obj.init(Point2d { x: x_, y: y_ })
+        obj.init(Point2 { x: x_, y: y_ })
     }
     #[text_signature = "(&self, other, /)"]
-    fn distance_to(&self, other: &Point2d) -> f64 {
+    fn distance_to(&self, other: &Point2) -> f64 {
         ((self.x - other.x).powi(2) + (self.y - other.y).powi(2)).sqrt()
     }
-    fn distance_to_squared(&self, other: &Point2d) -> f64 {
+    fn distance_to_squared(&self, other: &Point2) -> f64 {
         (self.x - other.x).powi(2) + (self.y - other.y).powi(2)
     }
 }
 
-/// Implements the repr function for Point2d class: https://pyo3.rs/v0.8.4/class.html#string-conversions
+/// Implements the repr function for Point2 class: https://pyo3.rs/v0.8.4/class.html#string-conversions
 #[pyproto]
-impl PyObjectProtocol for Point2d {
+impl PyObjectProtocol for Point2 {
     fn __repr__(&self) -> PyResult<String> {
-        Ok(format!("Point2d ( x: {:?}, y: {:?} )", self.x, self.y))
+        Ok(format!("Point2 ( x: {:?}, y: {:?} )", self.x, self.y))
     }
 }
 
@@ -61,10 +62,10 @@ class Point2:
     def __init__(self, x, y):
         self.x = x
         self.y = y
-# This class can now be used in rust as Point2d
+# This class can now be used in rust as Point2
 */
-impl<'source> FromPyObject<'source> for Point2d {
-    fn extract(ob: &'source PyAny) -> PyResult<Point2d> {
+impl<'source> FromPyObject<'source> for Point2 {
+    fn extract(ob: &'source PyAny) -> PyResult<Point2> {
         unsafe {
             let py = Python::assume_gil_acquired();
             let obj = ob.to_object(py);
@@ -80,14 +81,14 @@ impl<'source> FromPyObject<'source> for Point2d {
 #[pyclass(name=Point2Collection)]
 pub struct Point2Collection {
     #[pyo3(get)]
-    points: Vec<Point2d>,
+    points: Vec<Point2>,
 }
 
 #[pymethods]
 impl Point2Collection {
     #[new]
-    fn new(obj: &PyRawObject, _points: Vec<&Point2d>) {
-        let new_vec: Vec<Point2d> = _points.into_iter().map(|f| f.clone()).collect();
+    fn new(obj: &PyRawObject, _points: Vec<&Point2>) {
+        let new_vec: Vec<Point2> = _points.into_iter().map(|f| f.clone()).collect();
         obj.init(Point2Collection { points: new_vec })
     }
 
@@ -95,7 +96,7 @@ impl Point2Collection {
         Ok(self.points.len())
     }
 
-    fn append(&mut self, _point: Point2d) {
+    fn append(&mut self, _point: Point2) {
         self.points.push(_point);
     }
 
@@ -105,7 +106,7 @@ impl Point2Collection {
         }
     }
 
-    fn closest_point(&self, other: &Point2d) -> Point2d {
+    fn closest_point(&self, other: &Point2) -> Point2 {
         // TODO raise error when list of points is empty
         assert!(self.points.len() > 0);
         let mut iterable = self.points.clone().into_iter();
@@ -153,6 +154,7 @@ fn mult_mutable_py(_py: Python, a: f64, x: &PyArrayDyn<f64>) -> PyResult<()> {
     Ok(())
 }
 
+mod pathfinding;
 // Simple examples
 
 /// Formats the sum of two numbers as string
@@ -194,7 +196,7 @@ fn my_library(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(mult_mutable_py))?;
 
     // Classes to be exported
-    m.add_class::<Point2d>()?;
+    m.add_class::<Point2>()?;
     m.add_class::<Point2Collection>()?;
 
     Ok(())
