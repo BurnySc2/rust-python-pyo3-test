@@ -13,6 +13,9 @@ use std::f32::EPSILON;
 use pyo3::types::PyAny;
 use test::convert_benchmarks_to_tests;
 
+use indexmap::map::Entry::{Occupied, Vacant};
+use indexmap::IndexMap;
+
 use pathfinding::prelude::absdiff;
 use pathfinding::prelude::astar;
 
@@ -76,20 +79,20 @@ impl<'source> FromPyObject<'source> for Point2d {
 #[derive(Copy, Clone, Debug)]
 struct Node {
     cost_to_source: f32,
-    total_cost: f32,
+    total_estimated_cost: f32,
     position: Point2d,
     came_from: Point2d,
 }
 
 impl PartialEq for Node {
     fn eq(&self, other: &Self) -> bool {
-        self.total_cost - other.total_cost < EPSILON
+        self.total_estimated_cost - other.total_estimated_cost < EPSILON
     }
 }
 
 impl PartialOrd for Node {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        other.total_cost.partial_cmp(&self.total_cost)
+        other.total_estimated_cost.partial_cmp(&self.total_estimated_cost)
     }
 }
 
@@ -103,7 +106,8 @@ impl Ord for Node {
 impl Eq for Node {}
 
 fn manhattan_heuristic(source: Point2d, target: Point2d) -> f32 {
-    ((source.x - target.x).abs() + (source.y - target.y).abs()) as f32
+    (absdiff(source.x, target.x) + absdiff(source.y, target.y)) as f32
+//    ((source.x - target.x).abs() + (source.y - target.y).abs()) as f32
 }
 
 fn octal_heuristic(source: Point2d, target: Point2d) -> f32 {
@@ -111,31 +115,30 @@ fn octal_heuristic(source: Point2d, target: Point2d) -> f32 {
     let d2 = SQRT_2;
     let dx = (source.x - target.x).abs();
     let dy = (source.y - target.y).abs();
-    return d * (dx + dy) as f32 + (d2 - 2.0 * d) * (std::cmp::min(dx, dy) as f32);
+    let min = std::cmp::min(dx, dy);
+    return d * (dx + dy) as f32 + (d2 - 2.0 * d) * min as f32;
 }
 
 fn euclidean_heuristic(source: Point2d, target: Point2d) -> f32 {
-    // Check which one is faster
-    (((source.x - target.x).pow(2) + (source.y - target.y).pow(2)) as f32).sqrt()
-    //    let x = source.x - target.x;
-    //    let xx = x * x;
-    //    let y = source.y - target.y;
-    //    let yy = y * y;
-    //    let sum = xx + yy;
-    //    ((xx + yy) as f32).sqrt()
+    let x = source.x - target.x;
+    let xx = x * x;
+    let y = source.y - target.y;
+    let yy = y * y;
+    let sum = xx + yy;
+    ((xx + yy) as f32).sqrt()
 }
 
 fn construct_path(
     source: Point2d,
     target: Point2d,
-    nodes_map: &HashMap<Point2d, Node>,
+    nodes_map: &HashMap<Point2d, Point2d>,
 ) -> Option<Vec<Point2d>> {
     let mut path = vec![];
-    let mut node = nodes_map.get(&target)?;
+    let mut pos = nodes_map.get(&target)?;
     loop {
-        path.push(node.position);
-        node = nodes_map.get(&node.came_from)?;
-        if node.position == source {
+        path.push(*pos);
+        pos = nodes_map.get(&pos)?;
+        if *pos == source {
             break;
         }
     }
@@ -171,13 +174,14 @@ impl PathFinder {
 
     fn find_path(&self, source: Point2d, target: Point2d) -> Option<Vec<Point2d>> {
         let mut nodes_map = HashMap::new();
+//        let mut came_from = HashMap::new();
         let mut closed_list = HashSet::new();
 
         // Add source
         let mut heap = BinaryHeap::new();
         heap.push(Node {
             cost_to_source: 0.0,
-            total_cost: 0.0,
+            total_estimated_cost: 0.0,
             position: source,
             came_from: source,
         });
@@ -200,24 +204,21 @@ impl PathFinder {
 
         // TODO octal heuristic
         let heuristic: fn(Point2d, Point2d) -> f32;
-        if self.heuristic == "manhattan" {
-            heuristic = manhattan_heuristic;
-        } else if self.heuristic == "octal" {
-            heuristic = octal_heuristic
-        } else {
-            heuristic = euclidean_heuristic;
+        match self.heuristic.as_ref() {
+            "manhattan" => heuristic = manhattan_heuristic,
+            "octal" => heuristic = octal_heuristic,
+            _ => heuristic = euclidean_heuristic,
         }
 
-        while let Some(current) = heap.pop() {
-            //        while !heap.is_empty() {
-            //            let current = heap.pop()?;
 
+//        while let Some(Node {cost_to_source,total_estimated_cost,position,came_from }) = heap.pop() {
+        while let Some(current) = heap.pop() {
             // Already checked this position
             if closed_list.contains(&current.position) {
                 continue;
             }
 
-            nodes_map.insert(current.position, current);
+            nodes_map.insert(current.position, current.came_from);
 
             if current.position == target {
                 // Construct path
@@ -228,20 +229,17 @@ impl PathFinder {
 
             for (neighbor, real_cost, cost_estimate) in neighbors.iter() {
                 let new_node = current.position.add_neighbor(*neighbor);
-                if closed_list.contains(&new_node) {
-                    continue;
-                }
                 // TODO add cost from grid
                 //  if grid point has value == 0 (or -1?): is wall
 
                 let new_cost_to_source = current.cost_to_source + *real_cost;
                 let estimate_cost = heuristic(new_node, target);
-                let total_cost = new_cost_to_source + estimate_cost;
+                let total_estimated_cost = new_cost_to_source + estimate_cost;
 
                 // Should perhaps check if position is already in open list, but doesnt matter
                 heap.push(Node {
                     cost_to_source: new_cost_to_source,
-                    total_cost: total_cost,
+                    total_estimated_cost: total_estimated_cost,
                     position: new_node,
                     came_from: current.position,
                 });
@@ -252,7 +250,7 @@ impl PathFinder {
 }
 
 static SOURCE: Point2d = Point2d { x: 0, y: 0 };
-static TARGET: Point2d = Point2d { x: 5, y: 10 };
+static TARGET: Point2d = Point2d { x: 50, y: 100 };
 
 #[cfg(test)] // Only compiles when running tests
 mod tests {
