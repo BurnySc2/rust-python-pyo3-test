@@ -16,8 +16,19 @@ use test::convert_benchmarks_to_tests;
 use indexmap::map::Entry::{Occupied, Vacant};
 use indexmap::IndexMap;
 
-use pathfinding::prelude::absdiff;
 use pathfinding::prelude::astar;
+
+use std::ops::Sub;
+pub fn absdiff<T>(x: T, y: T) -> T
+where
+    T: Sub<Output = T> + PartialOrd,
+{
+    if x < y {
+        y - x
+    } else {
+        x - y
+    }
+}
 
 #[pyclass]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
@@ -92,14 +103,19 @@ impl PartialEq for Node {
 
 impl PartialOrd for Node {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        other.total_estimated_cost.partial_cmp(&self.total_estimated_cost)
+        other
+            .total_estimated_cost
+            .partial_cmp(&self.total_estimated_cost)
     }
 }
 
 // The result of this implementation doesnt seem to matter - instead what matters, is that it is implemented
 impl Ord for Node {
     fn cmp(&self, other: &Self) -> Ordering {
-        Ordering::Greater
+        other
+            .total_estimated_cost
+            .partial_cmp(&self.total_estimated_cost)
+            .unwrap()
     }
 }
 
@@ -107,19 +123,20 @@ impl Eq for Node {}
 
 fn manhattan_heuristic(source: Point2d, target: Point2d) -> f32 {
     (absdiff(source.x, target.x) + absdiff(source.y, target.y)) as f32
-//    ((source.x - target.x).abs() + (source.y - target.y).abs()) as f32
+    //    ((source.x - target.x).abs() + (source.y - target.y).abs()) as f32
 }
 
+static SQRT_2_MINUS_2: f32 = SQRT_2 - 2.0;
 fn octal_heuristic(source: Point2d, target: Point2d) -> f32 {
-    let d = 1.0;
-    let d2 = SQRT_2;
-    let dx = (source.x - target.x).abs();
-    let dy = (source.y - target.y).abs();
+    let dx = absdiff(source.x, target.x);
+    let dy = absdiff(source.y, target.y);
     let min = std::cmp::min(dx, dy);
-    return d * (dx + dy) as f32 + (d2 - 2.0 * d) * min as f32;
+    return dx as f32 + dy as f32 + SQRT_2_MINUS_2 * min as f32;
 }
 
 fn euclidean_heuristic(source: Point2d, target: Point2d) -> f32 {
+    //    (absdiff(source.x, target.x) + absdiff(source.y, target.y)) as f32
+    //    (((source.x - target.y).pow(2) + (source.y + target.y).pow(2)) as f32).sqrt()
     let x = source.x - target.x;
     let xx = x * x;
     let y = source.y - target.y;
@@ -174,7 +191,7 @@ impl PathFinder {
 
     fn find_path(&self, source: Point2d, target: Point2d) -> Option<Vec<Point2d>> {
         let mut nodes_map = HashMap::new();
-//        let mut came_from = HashMap::new();
+        //        let mut came_from = HashMap::new();
         let mut closed_list = HashSet::new();
 
         // Add source
@@ -187,52 +204,71 @@ impl PathFinder {
         });
 
         let neighbors;
-        if self.allow_diagonal {
-            neighbors = vec![
-                ((0, 1), 1.0, 1),
-                ((1, 0), 1.0, 1),
-                ((-1, 0), 1.0, 1),
-                ((0, -1), 1.0, 1),
-                ((1, 1), SQRT_2, 1),
-                ((1, -1), SQRT_2, 1),
-                ((-1, 1), SQRT_2, 1),
-                ((-1, -1), SQRT_2, 1),
-            ];
-        } else {
-            neighbors = vec![((0, 1), 1.0, 1), ((1, 0), 1.0, 1), ((-1, 0), 1.0, 1), ((0, -1), 1.0, 1)];
+        match self.allow_diagonal {
+            true => {
+                neighbors = vec![
+                    ((0, 1), 1.0, 1),
+                    ((1, 0), 1.0, 1),
+                    ((-1, 0), 1.0, 1),
+                    ((0, -1), 1.0, 1),
+                    ((1, 1), SQRT_2, 1),
+                    ((1, -1), SQRT_2, 1),
+                    ((-1, 1), SQRT_2, 1),
+                    ((-1, -1), SQRT_2, 1),
+                ]
+            }
+            false => {
+                neighbors = vec![
+                    ((0, 1), 1.0, 1),
+                    ((1, 0), 1.0, 1),
+                    ((-1, 0), 1.0, 1),
+                    ((0, -1), 1.0, 1),
+                ]
+            }
         }
 
-        // TODO octal heuristic
         let heuristic: fn(Point2d, Point2d) -> f32;
         match self.heuristic.as_ref() {
             "manhattan" => heuristic = manhattan_heuristic,
             "octal" => heuristic = octal_heuristic,
+            "euclidean" => heuristic = euclidean_heuristic,
             _ => heuristic = euclidean_heuristic,
         }
 
-
-//        while let Some(Node {cost_to_source,total_estimated_cost,position,came_from }) = heap.pop() {
-        while let Some(current) = heap.pop() {
+        //        while let Some(current) = heap.pop() {
+        while let Some(Node {
+            cost_to_source,
+            total_estimated_cost,
+            position,
+            came_from,
+        }) = heap.pop()
+        {
+            //            println!("Checking node: {:?}", position);
             // Already checked this position
-            if closed_list.contains(&current.position) {
+            if closed_list.contains(&position) {
                 continue;
             }
 
-            nodes_map.insert(current.position, current.came_from);
+            nodes_map.insert(position, came_from);
 
-            if current.position == target {
+            if position == target {
                 // Construct path
+                //                println!(
+                //                    "Total checked nodes ({:?}): {:?}",
+                //                    self.heuristic,
+                //                    nodes_map.len()
+                //                );
                 return construct_path(source, target, &nodes_map);
             }
 
-            closed_list.insert(current.position);
+            closed_list.insert(position);
 
             for (neighbor, real_cost, cost_estimate) in neighbors.iter() {
-                let new_node = current.position.add_neighbor(*neighbor);
+                let new_node = position.add_neighbor(*neighbor);
                 // TODO add cost from grid
                 //  if grid point has value == 0 (or -1?): is wall
 
-                let new_cost_to_source = current.cost_to_source + *real_cost;
+                let new_cost_to_source = cost_to_source + *real_cost;
                 let estimate_cost = heuristic(new_node, target);
                 let total_estimated_cost = new_cost_to_source + estimate_cost;
 
@@ -241,7 +277,7 @@ impl PathFinder {
                     cost_to_source: new_cost_to_source,
                     total_estimated_cost: total_estimated_cost,
                     position: new_node,
-                    came_from: current.position,
+                    came_from: position,
                 });
             }
         }
@@ -267,14 +303,14 @@ mod tests {
         // TODO use array2d https://docs.rs/array2d/0.2.1/array2d/
         // https://www.programming-idioms.org/idiom/26/create-a-2-dimensional-array/448/rust
         // https://stackoverflow.com/a/27984550/10882657
-        let grid: Vec<Vec<i32>> = vec![
-            vec![1, 1, 1, 1, 1],
-            vec![1, 1, 1, 1, 1],
-            vec![1, 1, 1, 1, 1],
-            vec![1, 1, 1, 1, 1],
-            vec![1, 1, 1, 1, 1],
-        ];
-        pf.update_grid(grid.clone());
+        //        let grid: Vec<Vec<i32>> = vec![
+        //            vec![1, 1, 1, 1, 1],
+        //            vec![1, 1, 1, 1, 1],
+        //            vec![1, 1, 1, 1, 1],
+        //            vec![1, 1, 1, 1, 1],
+        //            vec![1, 1, 1, 1, 1],
+        //        ];
+        //        pf.update_grid(grid.clone());
         let path = pf.find_path(SOURCE, TARGET);
         //        println!("RESULT {:?}", path);
     }
@@ -310,20 +346,20 @@ mod tests {
     }
 
     // This will only be executed when using "cargo test" and not "cargo bench"
-    #[test]
-    fn test_path() {
-        let pf = PathFinder {
-            allow_diagonal: true,
-            heuristic: String::from("octal"),
-            grid: vec![vec![]],
-        };
-
-        let source = Point2d { x: 0, y: 0 };
-        let target = Point2d { x: 5, y: 10 };
-
-        let path = pf.find_path(source, target);
-        println!("RESULT mine {:?}", path);
-    }
+    //    #[test]
+    //    fn test_path() {
+    //        let pf = PathFinder {
+    //            allow_diagonal: true,
+    //            heuristic: String::from("octal"),
+    //            grid: vec![vec![]],
+    //        };
+    //
+    //        let source = Point2d { x: 0, y: 0 };
+    //        let target = Point2d { x: 5, y: 10 };
+    //
+    //        let path = pf.find_path(source, target);
+    ////        println!("RESULT mine {:?}", path);
+    //    }
 
     #[bench]
     fn bench_manhattan_test(b: &mut Bencher) {
