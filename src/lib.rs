@@ -192,8 +192,8 @@ fn my_library(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(sum_as_string))?;
     m.add_wrapped(wrap_pyfunction!(factorial))?;
     m.add_wrapped(wrap_pyfunction!(factorial_iter))?;
-//    m.add_wrapped(wrap_pyfunction!(mult_with_return_py))?;
-//    m.add_wrapped(wrap_pyfunction!(mult_mutable_py))?;
+    //    m.add_wrapped(wrap_pyfunction!(mult_with_return_py))?;
+    //    m.add_wrapped(wrap_pyfunction!(mult_mutable_py))?;
 
     // Classes to be exported
     m.add_class::<Point2>()?;

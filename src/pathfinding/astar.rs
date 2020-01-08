@@ -13,8 +13,11 @@ use std::f32::EPSILON;
 use pyo3::types::PyAny;
 use test::convert_benchmarks_to_tests;
 
+use pathfinding::prelude::absdiff;
+use pathfinding::prelude::astar;
+
 #[pyclass]
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Point2d {
     // For the .x and .y attributes to be accessable in python, it requires these macros
     //    #[pyo3(get, set)]
@@ -30,6 +33,29 @@ impl Point2d {
             x: self.x + other.0,
             y: self.y + other.1,
         }
+    }
+
+    // These functions are just used for the pathfinding crate
+    fn distance(&self, other: &Self) -> u32 {
+        (absdiff(self.x, other.x) + absdiff(self.y, other.y)) as u32
+    }
+
+    fn successors(&self) -> Vec<(Point2d, u32)> {
+        let x = self.x;
+        let y = self.y;
+        vec![
+            Point2d { x: x + 1, y: y },
+            Point2d { x: x - 1, y: y },
+            Point2d { x: x, y: y + 1 },
+            Point2d { x: x, y: y - 1 },
+            Point2d { x: x + 1, y: y + 1 },
+            Point2d { x: x + 1, y: y - 1 },
+            Point2d { x: x - 1, y: y + 1 },
+            Point2d { x: x - 1, y: y - 1 },
+        ]
+        .into_iter()
+        .map(|p| (p, 1))
+        .collect()
     }
 }
 
@@ -63,16 +89,14 @@ impl PartialEq for Node {
 
 impl PartialOrd for Node {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        let comp = self.total_cost.partial_cmp(&other.total_cost).unwrap();
-        Some(comp.reverse())
+        other.total_cost.partial_cmp(&self.total_cost)
     }
 }
 
 // The result of this implementation doesnt seem to matter - instead what matters, is that it is implemented
 impl Ord for Node {
     fn cmp(&self, other: &Self) -> Ordering {
-        let comp = self.total_cost.partial_cmp(&other.total_cost).unwrap();
-        comp.reverse()
+        Ordering::Greater
     }
 }
 
@@ -161,17 +185,17 @@ impl PathFinder {
         let neighbors;
         if self.allow_diagonal {
             neighbors = vec![
-                (0, 1),
-                (1, 0),
-                (-1, 0),
-                (0, -1),
-                (1, 1),
-                (1, -1),
-                (-1, 1),
-                (-1, -1),
+                ((0, 1), 1.0, 1),
+                ((1, 0), 1.0, 1),
+                ((-1, 0), 1.0, 1),
+                ((0, -1), 1.0, 1),
+                ((1, 1), SQRT_2, 1),
+                ((1, -1), SQRT_2, 1),
+                ((-1, 1), SQRT_2, 1),
+                ((-1, -1), SQRT_2, 1),
             ];
         } else {
-            neighbors = vec![(0, 1), (1, 0), (-1, 0), (0, -1)];
+            neighbors = vec![((0, 1), 1.0, 1), ((1, 0), 1.0, 1), ((-1, 0), 1.0, 1), ((0, -1), 1.0, 1)];
         }
 
         // TODO octal heuristic
@@ -184,8 +208,9 @@ impl PathFinder {
             heuristic = euclidean_heuristic;
         }
 
-        while !heap.is_empty() {
-            let current = heap.pop()?;
+        while let Some(current) = heap.pop() {
+            //        while !heap.is_empty() {
+            //            let current = heap.pop()?;
 
             // Already checked this position
             if closed_list.contains(&current.position) {
@@ -201,7 +226,7 @@ impl PathFinder {
 
             closed_list.insert(current.position);
 
-            for (index, neighbor) in neighbors.iter().enumerate() {
+            for (neighbor, real_cost, cost_estimate) in neighbors.iter() {
                 let new_node = current.position.add_neighbor(*neighbor);
                 if closed_list.contains(&new_node) {
                     continue;
@@ -209,13 +234,7 @@ impl PathFinder {
                 // TODO add cost from grid
                 //  if grid point has value == 0 (or -1?): is wall
 
-                let cost;
-                if index > 3 {
-                    cost = SQRT_2;
-                } else {
-                    cost = 1.0;
-                }
-                let new_cost_to_source = current.cost_to_source + cost;
+                let new_cost_to_source = current.cost_to_source + *real_cost;
                 let estimate_cost = heuristic(new_node, target);
                 let total_cost = new_cost_to_source + estimate_cost;
 
@@ -243,10 +262,13 @@ mod tests {
 
     fn manhattan_test() {
         let mut pf = PathFinder {
-            allow_diagonal: false,
+            allow_diagonal: true,
             heuristic: String::from("manhattan"),
             grid: vec![vec![]],
         };
+        // TODO use array2d https://docs.rs/array2d/0.2.1/array2d/
+        // https://www.programming-idioms.org/idiom/26/create-a-2-dimensional-array/448/rust
+        // https://stackoverflow.com/a/27984550/10882657
         let grid: Vec<Vec<i32>> = vec![
             vec![1, 1, 1, 1, 1],
             vec![1, 1, 1, 1, 1],
@@ -261,7 +283,7 @@ mod tests {
 
     fn octal_test() {
         let pf = PathFinder {
-            allow_diagonal: false,
+            allow_diagonal: true,
             heuristic: String::from("octal"),
             grid: vec![vec![]],
         };
@@ -271,7 +293,7 @@ mod tests {
 
     fn euclidean_test() {
         let pf = PathFinder {
-            allow_diagonal: false,
+            allow_diagonal: true,
             heuristic: String::from("euclidean"),
             grid: vec![vec![]],
         };
@@ -279,11 +301,21 @@ mod tests {
         //        println!("RESULT {:?}", path);
     }
 
+    fn crate_pathfinding_astar_test() {
+        let path = astar(
+            &SOURCE,
+            |p| p.successors(),
+            |p| p.distance(&TARGET),
+            |p| *p == TARGET,
+        );
+        //        println!("RESULT crate {:?}", path);
+    }
+
     // This will only be executed when using "cargo test" and not "cargo bench"
     #[test]
     fn test_path() {
         let pf = PathFinder {
-            allow_diagonal: false,
+            allow_diagonal: true,
             heuristic: String::from("octal"),
             grid: vec![vec![]],
         };
@@ -292,7 +324,7 @@ mod tests {
         let target = Point2d { x: 5, y: 10 };
 
         let path = pf.find_path(source, target);
-        println!("RESULT {:?}", path);
+        println!("RESULT mine {:?}", path);
     }
 
     #[bench]
@@ -308,5 +340,10 @@ mod tests {
     #[bench]
     fn bench_euclidean_test(b: &mut Bencher) {
         b.iter(|| euclidean_test());
+    }
+
+    #[bench]
+    fn bench_crate_pathfinding_astar_test(b: &mut Bencher) {
+        b.iter(|| crate_pathfinding_astar_test());
     }
 }
