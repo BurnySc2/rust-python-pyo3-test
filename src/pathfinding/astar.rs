@@ -1,20 +1,16 @@
 use pyo3::prelude::*;
 
 use std::cmp::Ordering;
-use std::collections::BinaryHeap;
 
+use std::collections::BinaryHeap;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::f32::consts::SQRT_2;
-//use std::intrinsics::powf32;
 
+use std::f32::consts::SQRT_2;
 use std::f32::EPSILON;
 
 use pyo3::types::PyAny;
 use test::convert_benchmarks_to_tests;
-
-use indexmap::map::Entry::{Occupied, Vacant};
-use indexmap::IndexMap;
 
 use pathfinding::prelude::astar;
 
@@ -34,9 +30,9 @@ where
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Point2d {
     // For the .x and .y attributes to be accessable in python, it requires these macros
-    //    #[pyo3(get, set)]
+    #[pyo3(get, set)]
     x: i32,
-    //    #[pyo3(get, set)]
+    #[pyo3(get, set)]
     y: i32,
 }
 
@@ -123,7 +119,6 @@ impl Eq for Node {}
 
 fn manhattan_heuristic(source: Point2d, target: Point2d) -> f32 {
     (absdiff(source.x, target.x) + absdiff(source.y, target.y)) as f32
-    //    ((source.x - target.x).abs() + (source.y - target.y).abs()) as f32
 }
 
 static SQRT_2_MINUS_2: f32 = SQRT_2 - 2.0;
@@ -135,8 +130,6 @@ fn octal_heuristic(source: Point2d, target: Point2d) -> f32 {
 }
 
 fn euclidean_heuristic(source: Point2d, target: Point2d) -> f32 {
-    //    (absdiff(source.x, target.x) + absdiff(source.y, target.y)) as f32
-    //    (((source.x - target.y).pow(2) + (source.y + target.y).pow(2)) as f32).sqrt()
     let x = source.x - target.x;
     let xx = x * x;
     let y = source.y - target.y;
@@ -154,7 +147,7 @@ fn construct_path(
     let mut pos = nodes_map.get(&target)?;
     loop {
         path.push(*pos);
-        pos = nodes_map.get(&pos)?;
+        pos = nodes_map.get(pos)?;
         if *pos == source {
             break;
         }
@@ -191,7 +184,6 @@ impl PathFinder {
 
     fn find_path(&self, source: Point2d, target: Point2d) -> Option<Vec<Point2d>> {
         let mut nodes_map = HashMap::new();
-        //        let mut came_from = HashMap::new();
         let mut closed_list = HashSet::new();
 
         // Add source
