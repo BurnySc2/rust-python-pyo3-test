@@ -8,6 +8,7 @@ use std::f32::consts::SQRT_2;
 use std::f32::EPSILON;
 use std::ops::Sub;
 
+#[allow(dead_code)]
 pub fn absdiff<T>(x: T, y: T) -> T
 where
     T: Sub<Output = T> + PartialOrd,
@@ -33,12 +34,12 @@ fn octal_heuristic(source: Point2d, target: Point2d) -> f32 {
 }
 
 fn euclidean_heuristic(source: Point2d, target: Point2d) -> f32 {
-    let x = source.x - target.x;
+    let x = source.x as i32 - target.x as i32;
     let xx = x * x;
-    let y = source.y - target.y;
+    let y = source.y as i32 - target.y as i32;
     let yy = y * y;
-    let _sum = xx + yy;
-    ((xx + yy) as f32).sqrt()
+    let sum = xx + yy;
+    (sum as f32).sqrt()
 }
 
 fn no_heuristic(_source: Point2d, _target: Point2d) -> f32 {
@@ -170,6 +171,7 @@ impl Point2d {
     }
 }
 
+#[derive(Debug)]
 struct JumpPoint {
     start: Point2d,
     direction: Direction,
@@ -181,7 +183,7 @@ struct JumpPoint {
 
 impl PartialEq for JumpPoint {
     fn eq(&self, other: &Self) -> bool {
-        self.total_cost_estimate - other.total_cost_estimate < EPSILON
+        absdiff(self.total_cost_estimate, other.total_cost_estimate) < EPSILON
     }
 }
 
@@ -214,6 +216,7 @@ struct PathFinder {
     came_from: HashMap<Point2d, Point2d>,
 }
 
+#[allow(dead_code)]
 impl PathFinder {
     fn traverse(
         &mut self,
@@ -240,9 +243,14 @@ impl PathFinder {
         let (mut left_blocked, mut right_blocked) = (left_is_blocked, right_is_blocked);
         // While the path ahead is not blocked: traverse
         while let Some(new_point) = self.new_point_in_grid(&old_point, &direction) {
-            //            println!("Traversing in new point {:?}", start);
+                        println!("Traversing in new point {:?}", new_point);
             if new_point == *target {
                 self.came_from.insert(new_point, start);
+                //                println!(
+                //                    "Target found, inserting start point {:?} to target {:?}",
+                //                    start, new_point
+                //                );
+                return ();
             }
 
             if is_diagonal {
@@ -257,7 +265,7 @@ impl PathFinder {
                             left_blocked = false;
                             let new_cost_to_start = traversed_count as f32 * SQRT_2 + cost_to_start;
                             let new_cost_estimate = heuristic(point, *target);
-                            println!("Traversing diagonally from {:?} in dir {:?} and adding left turn in {:?}", old_point, direction, point);
+                            //                            println!("Traversing diagonally from {:?} in dir {:?} and adding left turn in {:?}", old_point, direction, point);
                             self.jump_points.push(JumpPoint {
                                 start: point,
                                 direction: direction.left(),
@@ -266,7 +274,10 @@ impl PathFinder {
                                 left_is_blocked: true,
                                 right_is_blocked: left_blocked_45.is_none(),
                             });
-                            self.came_from.insert(old_point, start);
+                            self.came_from.insert(point, old_point);
+                            if old_point != start {
+                                self.came_from.insert(old_point, start);
+                            }
                         }
                     }
                     // TODO on diagonal movement this check should be done before
@@ -287,7 +298,7 @@ impl PathFinder {
                             left_blocked = false;
                             let new_cost_to_start = traversed_count as f32 * SQRT_2 + cost_to_start;
                             let new_cost_estimate = heuristic(point, *target);
-                            println!("Traversing diagonally from {:?} in dir {:?} and adding right turn in {:?}", old_point, direction, point);
+                            //                            println!("Traversing diagonally from {:?} in dir {:?} and adding right turn in {:?}", old_point, direction, point);
                             self.jump_points.push(JumpPoint {
                                 start: point,
                                 direction: direction.right(),
@@ -296,7 +307,10 @@ impl PathFinder {
                                 left_is_blocked: right_blocked_45.is_none(),
                                 right_is_blocked: true,
                             });
-                            self.came_from.insert(old_point, start);
+                            self.came_from.insert(point, old_point);
+                            if old_point != start {
+                                self.came_from.insert(old_point, start);
+                            }
                         }
                     }
                     // TODO on diagonal movement this check should be done before
@@ -315,32 +329,38 @@ impl PathFinder {
                 if let Some(point) = left_blocked_45 {
                     let new_cost_to_start = (traversed_count) as f32 * SQRT_2 + cost_to_start;
                     let new_cost_estimate = heuristic(point, *target);
-                    println!("Traversing diagonally from {:?} in dir {:?} and adding left45 turn in {:?}", old_point, direction, point);
+                    //                    println!("Traversing diagonally from {:?} in dir {:?} and adding left45 turn in {:?} and cost {:?}", old_point, direction, point, new_cost_to_start + new_cost_estimate);
                     self.jump_points.push(JumpPoint {
-                        start: point,
+                        start: new_point,
                         direction: direction.half_left(),
                         cost_to_start: new_cost_to_start,
                         total_cost_estimate: new_cost_to_start + new_cost_estimate,
                         left_is_blocked: false,
                         right_is_blocked: false,
                     });
-                    self.came_from.insert(old_point, start);
+                    self.came_from.insert(point, new_point);
+                    if new_point != start {
+                        self.came_from.insert(new_point, start);
+                    }
                 }
 
                 // Add 45 degree right turn
                 if let Some(point) = right_blocked_45 {
                     let new_cost_to_start = (traversed_count) as f32 * SQRT_2 + cost_to_start;
                     let new_cost_estimate = heuristic(point, *target);
-                    println!("Traversing diagonally from {:?} in dir {:?} and adding right45 turn in {:?}", old_point, direction, point);
+                    //                    println!("Traversing diagonally from {:?} in dir {:?} and adding right45 turn in {:?}", old_point, direction, point);
                     self.jump_points.push(JumpPoint {
-                        start: point,
+                        start: new_point,
                         direction: direction.half_right(),
                         cost_to_start: new_cost_to_start,
                         total_cost_estimate: new_cost_to_start + new_cost_estimate,
                         left_is_blocked: false,
                         right_is_blocked: false,
                     });
-                    self.came_from.insert(old_point, start);
+                    self.came_from.insert(point, new_point);
+                    if new_point != start {
+                        self.came_from.insert(new_point, start);
+                    }
                 }
             } else {
                 // Traversing vertically or horizontally
@@ -353,7 +373,7 @@ impl PathFinder {
                             let new_cost_to_start =
                                 (traversed_count - 1) as f32 * SQRT_2 + cost_to_start;
                             let new_cost_estimate = heuristic(point, *target);
-                            println!("Traversing vertically/horizontally from {:?} in dir {:?} and adding left45 turn in {:?}", old_point, direction, point);
+                            //                            println!("Traversing vertically/horizontally from {:?} in dir {:?} and adding left45 turn in {:?}", old_point, direction, point);
                             self.jump_points.push(JumpPoint {
                                 start: point,
                                 direction: direction.half_left(),
@@ -362,7 +382,10 @@ impl PathFinder {
                                 left_is_blocked: true,
                                 right_is_blocked: false,
                             });
-                            self.came_from.insert(old_point, start);
+                            self.came_from.insert(point, old_point);
+                            if old_point != start {
+                                self.came_from.insert(old_point, start);
+                            }
                         }
                     }
                     // Left node wasn't blocked before, but may be blocked now
@@ -383,7 +406,7 @@ impl PathFinder {
                             let new_cost_to_start =
                                 (traversed_count - 1) as f32 * SQRT_2 + cost_to_start;
                             let new_cost_estimate = heuristic(point, *target);
-                            println!("Traversing vertically/horizontally from {:?} in dir {:?} and adding right45 turn in {:?}", old_point, direction, point);
+                            //                            println!("Traversing vertically/horizontally from {:?} in dir {:?} and adding right45 turn in {:?}", old_point, direction, point);
                             self.jump_points.push(JumpPoint {
                                 start: point,
                                 direction: direction.half_left(),
@@ -392,7 +415,10 @@ impl PathFinder {
                                 left_is_blocked: false,
                                 right_is_blocked: true,
                             });
-                            self.came_from.insert(old_point, start);
+                            self.came_from.insert(point, old_point);
+                            if old_point != start {
+                                self.came_from.insert(old_point, start);
+                            }
                         }
                     }
                     // Right node wasn't blocked before, but may be blocked now
@@ -421,19 +447,58 @@ impl PathFinder {
         None
     }
 
-    fn construct_path(&self, source: Point2d, target: Point2d) -> Option<Vec<Point2d>> {
+    fn get_direction(&self, source: Point2d, target: Point2d) -> Direction {
+        let mut x = 0;
+        let mut y = 0;
+        if target.x < source.x {
+            x = -1;
+        } else if target.x > source.x {
+            x = 1;
+        }
+        if target.y < source.y {
+            y = -1;
+        } else if target.y > source.y {
+            y = 1;
+        }
+        Direction { x: x, y: y }
+    }
+
+    fn construct_path(
+        &self,
+        source: Point2d,
+        target: Point2d,
+        construct_full_path: bool,
+    ) -> Option<Vec<Point2d>> {
         let mut path = vec![];
         let mut pos = self.came_from.get(&target)?;
-        loop {
-            path.push(*pos);
-            pos = self.came_from.get(pos)?;
-            if *pos == source {
-                break;
+
+        if construct_full_path {
+            let mut old_pos = target;
+            path.push(target);
+            loop {
+                let d = self.get_direction(old_pos, *pos);
+                while *pos != old_pos {
+                    old_pos = old_pos.add_direction(&d);
+                    path.push(old_pos);
+                }
+                if old_pos == source {
+                    break;
+                }
+                pos = self.came_from.get(pos)?;
             }
+        } else {
+            path.push(target);
+            loop {
+                path.push(*pos);
+                pos = self.came_from.get(pos)?;
+                if *pos == source {
+                    break;
+                }
+            }
+            path.push(source);
         }
-        path.push(source);
         path.reverse();
-        Some(path)
+        return Some(path);
     }
 
     fn find_path(&mut self, source: &Point2d, target: &Point2d) -> Option<Vec<Point2d>> {
@@ -442,7 +507,7 @@ impl PathFinder {
             return None;
         }
 
-        let mut jump_points = BinaryHeap::new();
+        //        let mut jump_points = BinaryHeap::new();
         //        let mut visited = HashSet::new();
         //        visited.insert(source);
 
@@ -472,37 +537,36 @@ impl PathFinder {
             let cost = if index > 3 { SQRT_2 } else { 1.0 };
             let new_node = source.add_tuple(*n);
             let estimate = heuristic(new_node, *target);
-            self.came_from.insert(new_node, *source);
             let dir = Direction { x: n.0, y: n.1 };
             let left_blocked = self.new_point_in_grid(source, &dir.left()).is_none();
             let right_blocked = self.new_point_in_grid(source, &dir.right()).is_none();
-            jump_points.push(JumpPoint {
-                start: new_node,
+            self.jump_points.push(JumpPoint {
+                start: *source,
                 direction: dir,
-                cost_to_start: cost,
+                cost_to_start: 0.0,
                 total_cost_estimate: cost + estimate,
                 left_is_blocked: left_blocked,
                 right_is_blocked: right_blocked,
             });
+//            self.came_from.insert(new_node, *source);
         }
 
         while let Some(JumpPoint {
             start,
             direction,
             cost_to_start,
-            total_cost_estimate: _,
+            total_cost_estimate,
             left_is_blocked,
             right_is_blocked,
-        }) = jump_points.pop()
+        }) = self.jump_points.pop()
         {
-            println!("Traversing point {:?} in direction {:?}", start, direction);
+            //            println!(
+            //                "Traversing point {:?} in direction {:?} with cost {:?} and total cost {:?}",
+            //                start, direction, cost_to_start, total_cost_estimate
+            //            );
             if !self.is_in_grid(start) {
-                println!("Continueing because startpoint is not in grid");
+                //                println!("Continueing because startpoint is not in grid");
                 continue;
-            }
-            if self.came_from.contains_key(target) {
-                println!("Target reached, constructing path");
-                return self.construct_path(*source, *target);
             }
 
             //            if self.came_from.contains_key(&start) {
@@ -519,6 +583,13 @@ impl PathFinder {
                 right_is_blocked,
                 heuristic,
             );
+
+            if self.came_from.contains_key(target) {
+                //                println!("Target reached, constructing path");
+                //                println!("Came from hashmap: {:?}", self.came_from);
+
+                return self.construct_path(*source, *target, true);
+            }
         }
 
         None
@@ -526,9 +597,21 @@ impl PathFinder {
 }
 
 static SOURCE: Point2d = Point2d { x: 5, y: 5 };
-static TARGET: Point2d = Point2d { x: 7, y: 9 };
+static TARGET: Point2d = Point2d { x: 10, y: 12};
 
-pub fn jps_test() {
+pub fn jps_test(grid: &Vec<Vec<u8>>) {
+    let mut pf = PathFinder::default();
+    pf.heuristic = String::from("euclidean");
+    //        pf.heuristic = octal_heuristic;
+    pf.grid = grid.clone();
+
+    //    println!("{:?}", pf.grid);
+    //        println!("{:?}", array);
+    let path = pf.find_path(&SOURCE, &TARGET);
+    println!("RESULT {:?}", path);
+}
+
+pub fn grid_setup(size: usize) -> Vec<Vec<u8>> {
     // https://stackoverflow.com/a/59043086/10882657
     // Width and height can be unknown at compile time
     let width = 100;
@@ -538,7 +621,7 @@ pub fn jps_test() {
     // Width and height must be known at compile time
     const WIDTH: usize = 100;
     const HEIGHT: usize = 100;
-    let mut array = [[1; WIDTH]; HEIGHT];
+    let mut array = [[1u8; WIDTH]; HEIGHT];
 
     // Set boundaries
     for y in 0..HEIGHT {
@@ -553,16 +636,37 @@ pub fn jps_test() {
         array[0][x] = 0;
         array[HEIGHT - 1][x] = 0;
     }
+    return grid;
+}
 
-    let mut pf = PathFinder::default();
-    pf.heuristic = String::from("octal");
-    //        pf.heuristic = octal_heuristic;
-    pf.grid = grid;
+fn vec_2d_setup()  -> Vec<Vec<u8>>  {
+    let width = 100;
+    let height = 100;
+    let mut grid = vec![vec![1; width]; height];
+    grid
+}
 
-    //    println!("{:?}", pf.grid);
-    //        println!("{:?}", array);
-    let path = pf.find_path(&SOURCE, &TARGET);
-    println!("RESULT {:?}", path);
+fn vec_2d_index_test(my_vec: &Vec<Vec<u8>>) {
+    for y in 0..100 {
+        for x in 0..100 {
+            my_vec[y][x];
+        }
+    }
+}
+
+fn array_2d_setup()  -> [[u8; 100]; 100]  {
+    const WIDTH: usize = 100;
+    const HEIGHT: usize = 100;
+    let mut array = [[1u8; WIDTH]; HEIGHT];
+    array
+}
+
+fn array_2d_index_test(my_vec: &[[u8; 100]; 100]) {
+    for y in 0..100 {
+        for x in 0..100 {
+            my_vec[y][x];
+        }
+    }
 }
 
 #[cfg(test)] // Only compiles when running tests
@@ -589,6 +693,19 @@ mod tests {
 
     #[bench]
     fn bench_jps_test(b: &mut Bencher) {
-        b.iter(|| jps_test());
+        let grid = grid_setup(100);
+        b.iter(|| jps_test(&grid));
+    }
+
+    #[bench]
+    fn bench_index_vec_vec_u8(b: &mut Bencher) {
+        let grid = vec_2d_setup();
+        b.iter(|| vec_2d_index_test(&grid));
+    }
+
+    #[bench]
+    fn bench_index_array_u8(b: &mut Bencher) {
+        let grid = array_2d_setup();
+        b.iter(|| array_2d_index_test(&grid));
     }
 }
