@@ -8,6 +8,8 @@ use std::f32::consts::SQRT_2;
 use std::f32::EPSILON;
 use std::ops::Sub;
 
+use ndarray::{array, Array, Array2};
+
 #[allow(dead_code)]
 pub fn absdiff<T>(x: T, y: T) -> T
 where
@@ -207,9 +209,11 @@ impl Ord for JumpPoint {
 
 impl Eq for JumpPoint {}
 
-#[derive(Default)]
+//#[derive(Default)]
 struct PathFinder {
-    grid: Vec<Vec<u8>>,
+    //    grid: [[u8; 100]; 100],
+    //    grid: Vec<Vec<u8>>,
+    grid: Array2<u8>,
     heuristic: String,
     jump_points: BinaryHeap<JumpPoint>,
     // Contains points which were already visited
@@ -243,7 +247,7 @@ impl PathFinder {
         let (mut left_blocked, mut right_blocked) = (left_is_blocked, right_is_blocked);
         // While the path ahead is not blocked: traverse
         while let Some(new_point) = self.new_point_in_grid(&old_point, &direction) {
-                        println!("Traversing in new point {:?}", new_point);
+            println!("Traversing in new point {:?}", new_point);
             if new_point == *target {
                 self.came_from.insert(new_point, start);
                 //                println!(
@@ -436,7 +440,8 @@ impl PathFinder {
     }
 
     fn is_in_grid(&self, point: Point2d) -> bool {
-        self.grid[point.y][point.x] == 1
+        //        self.grid[point.y][point.x] == 1
+        self.grid[[point.y, point.x]] == 1
     }
     fn new_point_in_grid(&self, point: &Point2d, direction: &Direction) -> Option<Point2d> {
         // Returns new point if point in that direction is not blocked
@@ -503,7 +508,8 @@ impl PathFinder {
 
     fn find_path(&mut self, source: &Point2d, target: &Point2d) -> Option<Vec<Point2d>> {
         // Return early when start is in the wall
-        if self.grid[source.y][source.x] == 0 {
+        //        if self.grid[source.y][source.x] == 0 {
+        if self.grid[[source.y, source.x]] == 0 {
             return None;
         }
 
@@ -548,7 +554,7 @@ impl PathFinder {
                 left_is_blocked: left_blocked,
                 right_is_blocked: right_blocked,
             });
-//            self.came_from.insert(new_node, *source);
+            //            self.came_from.insert(new_node, *source);
         }
 
         while let Some(JumpPoint {
@@ -597,13 +603,20 @@ impl PathFinder {
 }
 
 static SOURCE: Point2d = Point2d { x: 5, y: 5 };
-static TARGET: Point2d = Point2d { x: 10, y: 12};
+static TARGET: Point2d = Point2d { x: 10, y: 12 };
 
-pub fn jps_test(grid: &Vec<Vec<u8>>) {
-    let mut pf = PathFinder::default();
-    pf.heuristic = String::from("euclidean");
-    //        pf.heuristic = octal_heuristic;
-    pf.grid = grid.clone();
+//pub fn jps_test(grid: [[u8; 100]; 100]) {
+//pub fn jps_test(grid: Vec<Vec<u8>>) {
+pub fn jps_test(grid: Array2<u8>) {
+    let mut pf = PathFinder {
+        grid: grid,
+        heuristic: String::from("octal"),
+        jump_points: BinaryHeap::new(),
+        came_from: HashMap::new(),
+    };
+    //    let mut pf = PathFinder::default();
+    //    pf.heuristic = String::from("euclidean");
+    //    pf.grid = grid.clone();
 
     //    println!("{:?}", pf.grid);
     //        println!("{:?}", array);
@@ -611,7 +624,9 @@ pub fn jps_test(grid: &Vec<Vec<u8>>) {
     println!("RESULT {:?}", path);
 }
 
-pub fn grid_setup(size: usize) -> Vec<Vec<u8>> {
+//pub fn grid_setup(size: usize) ->  [[u8; 100]; 100] {
+//pub fn grid_setup(size: usize) ->  Vec<Vec<u8>> {
+pub fn grid_setup(size: usize) -> Array2<u8> {
     // https://stackoverflow.com/a/59043086/10882657
     // Width and height can be unknown at compile time
     let width = 100;
@@ -623,23 +638,29 @@ pub fn grid_setup(size: usize) -> Vec<Vec<u8>> {
     const HEIGHT: usize = 100;
     let mut array = [[1u8; WIDTH]; HEIGHT];
 
+    let mut ndarray = Array2::<u8>::ones((width, height));
+
     // Set boundaries
     for y in 0..HEIGHT {
         grid[y][0] = 0;
         grid[y][WIDTH - 1] = 0;
         array[y][0] = 0;
         array[y][WIDTH - 1] = 0;
+        ndarray[[y, 0]] = 0;
+        ndarray[[y, WIDTH - 1]] = 0;
     }
     for x in 0..WIDTH {
         grid[0][x] = 0;
         grid[HEIGHT - 1][x] = 0;
         array[0][x] = 0;
         array[HEIGHT - 1][x] = 0;
+        ndarray[[0, x]] = 0;
+        ndarray[[HEIGHT - 1, x]] = 0;
     }
-    return grid;
+    return ndarray;
 }
 
-fn vec_2d_setup()  -> Vec<Vec<u8>>  {
+fn vec_2d_setup() -> Vec<Vec<u8>> {
     let width = 100;
     let height = 100;
     let mut grid = vec![vec![1; width]; height];
@@ -654,7 +675,7 @@ fn vec_2d_index_test(my_vec: &Vec<Vec<u8>>) {
     }
 }
 
-fn array_2d_setup()  -> [[u8; 100]; 100]  {
+fn array_2d_setup() -> [[u8; 100]; 100] {
     const WIDTH: usize = 100;
     const HEIGHT: usize = 100;
     let mut array = [[1u8; WIDTH]; HEIGHT];
@@ -665,6 +686,21 @@ fn array_2d_index_test(my_vec: &[[u8; 100]; 100]) {
     for y in 0..100 {
         for x in 0..100 {
             my_vec[y][x];
+        }
+    }
+}
+
+fn ndarray_setup() -> Array2<u8> {
+    let width = 100;
+    let height = 100;
+    let mut grid = Array2::<u8>::ones((width, height));
+    grid
+}
+
+fn ndarray_index_test(my_vec: &Array2<u8>) {
+    for y in 0..100 {
+        for x in 0..100 {
+            my_vec[[y, x]];
         }
     }
 }
@@ -694,7 +730,7 @@ mod tests {
     #[bench]
     fn bench_jps_test(b: &mut Bencher) {
         let grid = grid_setup(100);
-        b.iter(|| jps_test(&grid));
+        b.iter(|| jps_test(grid.clone()));
     }
 
     #[bench]
@@ -707,5 +743,11 @@ mod tests {
     fn bench_index_array_u8(b: &mut Bencher) {
         let grid = array_2d_setup();
         b.iter(|| array_2d_index_test(&grid));
+    }
+
+    #[bench]
+    fn bench_index_ndarray_u8(b: &mut Bencher) {
+        let grid = ndarray_setup();
+        b.iter(|| ndarray_index_test(&grid));
     }
 }
