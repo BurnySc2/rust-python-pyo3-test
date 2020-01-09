@@ -46,11 +46,11 @@ jobs:
         path: target
         key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
 
-    - name: Install latest nightly
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: nightly
-        override: true
+#    - name: Install latest nightly
+#      uses: actions-rs/toolchain@v1
+#      with:
+#        toolchain: nightly
+#        override: true
 
     - name: Run cargo check
       uses: actions-rs/cargo@v1
