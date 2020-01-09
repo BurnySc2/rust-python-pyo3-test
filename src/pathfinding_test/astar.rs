@@ -11,8 +11,6 @@ use std::f32::EPSILON;
 
 use pyo3::types::PyAny;
 
-use pathfinding::prelude::astar;
-
 use std::ops::Sub;
 
 pub fn absdiff<T>(x: T, y: T) -> T
@@ -293,7 +291,7 @@ mod tests {
     use test::Bencher;
 
     fn manhattan_test() {
-        let mut pf = PathFinder {
+        let pf = PathFinder {
             allow_diagonal: true,
             heuristic: String::from("manhattan"),
             grid: vec![vec![]],
@@ -309,7 +307,7 @@ mod tests {
         //            vec![1, 1, 1, 1, 1],
         //        ];
         //        pf.update_grid(grid.clone());
-        let path = pf.find_path(SOURCE, TARGET);
+        let _path = pf.find_path(SOURCE, TARGET);
         //        println!("RESULT {:?}", path);
     }
 
@@ -319,7 +317,7 @@ mod tests {
             heuristic: String::from("octal"),
             grid: vec![vec![]],
         };
-        let path = pf.find_path(SOURCE, TARGET);
+        let _path = pf.find_path(SOURCE, TARGET);
         //        println!("RESULT {:?}", path);
     }
 
@@ -329,7 +327,7 @@ mod tests {
             heuristic: String::from("euclidean"),
             grid: vec![vec![]],
         };
-        let path = pf.find_path(SOURCE, TARGET);
+        let _path = pf.find_path(SOURCE, TARGET);
         //        println!("RESULT {:?}", path);
     }
 
@@ -339,19 +337,20 @@ mod tests {
             heuristic: String::from("none"),
             grid: vec![vec![]],
         };
-        let path = pf.find_path(SOURCE, TARGET);
+        let _path = pf.find_path(SOURCE, TARGET);
         //        println!("RESULT {:?}", path);
     }
 
-    fn crate_pathfinding_astar_test() {
-        let path = astar(
-            &SOURCE,
-            |p| p.successors(),
-            |p| p.distance(&TARGET),
-            |p| *p == TARGET,
-        );
-        //        println!("RESULT crate {:?}", path);
-    }
+    //    use pathfinding::prelude::*;
+    //    fn crate_pathfinding_astar_test() {
+    //        let _path = astar(
+    //            &SOURCE,
+    //            |p| p.successors(),
+    //            |p| p.distance(&TARGET),
+    //            |p| *p == TARGET,
+    //        );
+    //        println!("RESULT crate {:?}", path);
+    //    }
 
     // This will only be executed when using "cargo test" and not "cargo bench"
     //    #[test]
@@ -371,26 +370,26 @@ mod tests {
 
     #[bench]
     fn bench_manhattan_test(b: &mut Bencher) {
-        b.iter(|| manhattan_test());
+        b.iter(manhattan_test);
     }
 
     #[bench]
     fn bench_octal_test(b: &mut Bencher) {
-        b.iter(|| octal_test());
+        b.iter(octal_test);
     }
 
     #[bench]
     fn bench_euclidean_test(b: &mut Bencher) {
-        b.iter(|| euclidean_test());
+        b.iter(euclidean_test);
     }
 
     #[bench]
     fn bench_no_heuristic_test(b: &mut Bencher) {
-        b.iter(|| no_heuristic_test());
+        b.iter(no_heuristic_test);
     }
 
-    #[bench]
-    fn bench_crate_pathfinding_astar_test(b: &mut Bencher) {
-        b.iter(|| crate_pathfinding_astar_test());
-    }
+    //    #[bench]
+    //    fn bench_crate_pathfinding_astar_test(b: &mut Bencher) {
+    //        b.iter(crate_pathfinding_astar_test);
+    //    }
 }

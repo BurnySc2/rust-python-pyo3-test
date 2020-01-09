@@ -1,14 +1,14 @@
 // https://github.com/mikolalysenko/l1-path-finder
 
 // https://en.wikipedia.org/wiki/Jump_point_search
-use std::collections::{BinaryHeap, HashMap, HashSet};
+use std::collections::{BinaryHeap, HashMap};
 
 use std::cmp::Ordering;
 use std::f32::consts::SQRT_2;
 use std::f32::EPSILON;
 use std::ops::Sub;
 
-use ndarray::{array, Array, Array2};
+use ndarray::Array2;
 
 #[allow(dead_code)]
 pub fn absdiff<T>(x: T, y: T) -> T
@@ -209,10 +209,7 @@ impl Ord for JumpPoint {
 
 impl Eq for JumpPoint {}
 
-//#[derive(Default)]
 struct PathFinder {
-    //    grid: [[u8; 100]; 100],
-    //    grid: Vec<Vec<u8>>,
     grid: Array2<u8>,
     heuristic: String,
     jump_points: BinaryHeap<JumpPoint>,
@@ -242,19 +239,15 @@ impl PathFinder {
             _ => is_diagonal = true,
         }
 
-        let new_point = start;
+        let _new_point = start;
         let mut old_point = start;
         let (mut left_blocked, mut right_blocked) = (left_is_blocked, right_is_blocked);
         // While the path ahead is not blocked: traverse
         while let Some(new_point) = self.new_point_in_grid(&old_point, &direction) {
-            println!("Traversing in new point {:?}", new_point);
+            //            println!("Traversing in new point {:?}", new_point);
             if new_point == *target {
                 self.came_from.insert(new_point, start);
-                //                println!(
-                //                    "Target found, inserting start point {:?} to target {:?}",
-                //                    start, new_point
-                //                );
-                return ();
+                return;
             }
 
             if is_diagonal {
@@ -465,7 +458,7 @@ impl PathFinder {
         } else if target.y > source.y {
             y = 1;
         }
-        Direction { x: x, y: y }
+        Direction { x, y }
     }
 
     fn construct_path(
@@ -503,7 +496,7 @@ impl PathFinder {
             path.push(source);
         }
         path.reverse();
-        return Some(path);
+        Some(path)
     }
 
     fn find_path(&mut self, source: &Point2d, target: &Point2d) -> Option<Vec<Point2d>> {
@@ -561,7 +554,7 @@ impl PathFinder {
             start,
             direction,
             cost_to_start,
-            total_cost_estimate,
+            total_cost_estimate: _,
             left_is_blocked,
             right_is_blocked,
         }) = self.jump_points.pop()
@@ -609,7 +602,7 @@ static TARGET: Point2d = Point2d { x: 10, y: 12 };
 //pub fn jps_test(grid: Vec<Vec<u8>>) {
 pub fn jps_test(grid: Array2<u8>) {
     let mut pf = PathFinder {
-        grid: grid,
+        grid,
         heuristic: String::from("octal"),
         jump_points: BinaryHeap::new(),
         came_from: HashMap::new(),
@@ -621,12 +614,12 @@ pub fn jps_test(grid: Array2<u8>) {
     //    println!("{:?}", pf.grid);
     //        println!("{:?}", array);
     let path = pf.find_path(&SOURCE, &TARGET);
-    println!("RESULT {:?}", path);
+    //    println!("RESULT {:?}", path);
 }
 
 //pub fn grid_setup(size: usize) ->  [[u8; 100]; 100] {
 //pub fn grid_setup(size: usize) ->  Vec<Vec<u8>> {
-pub fn grid_setup(size: usize) -> Array2<u8> {
+pub fn grid_setup(_size: usize) -> Array2<u8> {
     // https://stackoverflow.com/a/59043086/10882657
     // Width and height can be unknown at compile time
     let width = 100;
@@ -657,13 +650,13 @@ pub fn grid_setup(size: usize) -> Array2<u8> {
         ndarray[[0, x]] = 0;
         ndarray[[HEIGHT - 1, x]] = 0;
     }
-    return ndarray;
+    ndarray
 }
 
 fn vec_2d_setup() -> Vec<Vec<u8>> {
     let width = 100;
     let height = 100;
-    let mut grid = vec![vec![1; width]; height];
+    let grid = vec![vec![1; width]; height];
     grid
 }
 
@@ -678,7 +671,7 @@ fn vec_2d_index_test(my_vec: &Vec<Vec<u8>>) {
 fn array_2d_setup() -> [[u8; 100]; 100] {
     const WIDTH: usize = 100;
     const HEIGHT: usize = 100;
-    let mut array = [[1u8; WIDTH]; HEIGHT];
+    let array = [[1u8; WIDTH]; HEIGHT];
     array
 }
 
@@ -693,7 +686,7 @@ fn array_2d_index_test(my_vec: &[[u8; 100]; 100]) {
 fn ndarray_setup() -> Array2<u8> {
     let width = 100;
     let height = 100;
-    let mut grid = Array2::<u8>::ones((width, height));
+    let grid = Array2::<u8>::ones((width, height));
     grid
 }
 
