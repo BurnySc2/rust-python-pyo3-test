@@ -15,6 +15,7 @@ use test::convert_benchmarks_to_tests;
 use pathfinding::prelude::astar;
 
 use std::ops::Sub;
+
 pub fn absdiff<T>(x: T, y: T) -> T
 where
     T: Sub<Output = T> + PartialOrd,
@@ -122,6 +123,7 @@ fn manhattan_heuristic(source: Point2d, target: Point2d) -> f32 {
 }
 
 static SQRT_2_MINUS_2: f32 = SQRT_2 - 2.0;
+
 fn octal_heuristic(source: Point2d, target: Point2d) -> f32 {
     let dx = absdiff(source.x, target.x);
     let dy = absdiff(source.y, target.y);
@@ -136,6 +138,10 @@ fn euclidean_heuristic(source: Point2d, target: Point2d) -> f32 {
     let yy = y * y;
     let sum = xx + yy;
     ((xx + yy) as f32).sqrt()
+}
+
+fn no_heuristic(source: Point2d, target: Point2d) -> f32 {
+    0.0
 }
 
 fn construct_path(
@@ -224,6 +230,7 @@ impl PathFinder {
             "manhattan" => heuristic = manhattan_heuristic,
             "octal" => heuristic = octal_heuristic,
             "euclidean" => heuristic = euclidean_heuristic,
+            "none" => heuristic = no_heuristic,
             _ => heuristic = euclidean_heuristic,
         }
 
@@ -277,8 +284,8 @@ impl PathFinder {
     }
 }
 
-static SOURCE: Point2d = Point2d { x: 0, y: 0 };
-static TARGET: Point2d = Point2d { x: 50, y: 100 };
+static SOURCE: Point2d = Point2d { x: 5, y: 5 };
+static TARGET: Point2d = Point2d { x: 50, y: 90 };
 
 #[cfg(test)] // Only compiles when running tests
 mod tests {
@@ -327,6 +334,16 @@ mod tests {
         //        println!("RESULT {:?}", path);
     }
 
+    fn no_heuristic_test() {
+        let pf = PathFinder {
+            allow_diagonal: true,
+            heuristic: String::from("none"),
+            grid: vec![vec![]],
+        };
+        let path = pf.find_path(SOURCE, TARGET);
+        //        println!("RESULT {:?}", path);
+    }
+
     fn crate_pathfinding_astar_test() {
         let path = astar(
             &SOURCE,
@@ -366,6 +383,11 @@ mod tests {
     #[bench]
     fn bench_euclidean_test(b: &mut Bencher) {
         b.iter(|| euclidean_test());
+    }
+
+    #[bench]
+    fn bench_no_heuristic_test(b: &mut Bencher) {
+        b.iter(|| no_heuristic_test());
     }
 
     #[bench]

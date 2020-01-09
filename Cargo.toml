@@ -14,6 +14,7 @@ cute = "0.3.0"
 #ndarray = "0.13"
 pathfinding = "2.0.3"
 indexmap = "1.3.0"
+pretty_assertions = "0.6.1"
 
 [dependencies.pyo3]
 version = "0.8.4"

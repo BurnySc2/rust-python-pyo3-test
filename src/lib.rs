@@ -154,7 +154,8 @@ impl Point2Collection {
 //    Ok(())
 //}
 
-mod pathfinding;
+mod pathfinding_test;
+//mod base;
 // Simple examples
 
 /// Formats the sum of two numbers as string
@@ -167,7 +168,7 @@ fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
 #[pyfunction]
 fn factorial_iter(input: u128) -> u128 {
     let mut result = 1;
-    for i in 2..input + 1 {
+    for i in 2..=input {
         result *= i
     }
     result
