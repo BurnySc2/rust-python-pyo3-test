@@ -10,7 +10,6 @@ use std::f32::consts::SQRT_2;
 use std::f32::EPSILON;
 
 use pyo3::types::PyAny;
-use test::convert_benchmarks_to_tests;
 
 use pathfinding::prelude::astar;
 
@@ -128,7 +127,7 @@ fn octal_heuristic(source: Point2d, target: Point2d) -> f32 {
     let dx = absdiff(source.x, target.x);
     let dy = absdiff(source.y, target.y);
     let min = std::cmp::min(dx, dy);
-    return dx as f32 + dy as f32 + SQRT_2_MINUS_2 * min as f32;
+    dx as f32 + dy as f32 + SQRT_2_MINUS_2 * min as f32
 }
 
 fn euclidean_heuristic(source: Point2d, target: Point2d) -> f32 {
@@ -136,11 +135,11 @@ fn euclidean_heuristic(source: Point2d, target: Point2d) -> f32 {
     let xx = x * x;
     let y = source.y - target.y;
     let yy = y * y;
-    let sum = xx + yy;
+    let _sum = xx + yy;
     ((xx + yy) as f32).sqrt()
 }
 
-fn no_heuristic(source: Point2d, target: Point2d) -> f32 {
+fn no_heuristic(_source: Point2d, _target: Point2d) -> f32 {
     0.0
 }
 
@@ -237,7 +236,7 @@ impl PathFinder {
         //        while let Some(current) = heap.pop() {
         while let Some(Node {
             cost_to_source,
-            total_estimated_cost,
+            total_estimated_cost: _,
             position,
             came_from,
         }) = heap.pop()
@@ -262,7 +261,7 @@ impl PathFinder {
 
             closed_list.insert(position);
 
-            for (neighbor, real_cost, cost_estimate) in neighbors.iter() {
+            for (neighbor, real_cost, _cost_estimate) in neighbors.iter() {
                 let new_node = position.add_neighbor(*neighbor);
                 // TODO add cost from grid
                 //  if grid point has value == 0 (or -1?): is wall
@@ -274,7 +273,7 @@ impl PathFinder {
                 // Should perhaps check if position is already in open list, but doesnt matter
                 heap.push(Node {
                     cost_to_source: new_cost_to_source,
-                    total_estimated_cost: total_estimated_cost,
+                    total_estimated_cost,
                     position: new_node,
                     came_from: position,
                 });

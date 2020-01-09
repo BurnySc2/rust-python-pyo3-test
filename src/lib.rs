@@ -88,7 +88,7 @@ pub struct Point2Collection {
 impl Point2Collection {
     #[new]
     fn new(obj: &PyRawObject, _points: Vec<&Point2>) {
-        let new_vec: Vec<Point2> = _points.into_iter().map(|f| f.clone()).collect();
+        let new_vec: Vec<Point2> = _points.into_iter().copied().collect();
         obj.init(Point2Collection { points: new_vec })
     }
 
@@ -108,7 +108,7 @@ impl Point2Collection {
 
     fn closest_point(&self, other: &Point2) -> Point2 {
         // TODO raise error when list of points is empty
-        assert!(self.points.len() > 0);
+        assert!(!self.points.is_empty());
         let mut iterable = self.points.clone().into_iter();
         let mut closest = iterable.next().unwrap();
         let mut distance_sq_closest = closest.distance_to_squared(other);

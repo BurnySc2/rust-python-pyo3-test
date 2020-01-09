@@ -57,6 +57,11 @@ jobs:
       with:
         command: check
 
+    - name: Run clippy
+      run: |
+        rustup component add clippy
+        cargo clippy
+
     - name: Test
       run: cargo test --verbose --release
       if: matrix.os == 'windows-latest'
