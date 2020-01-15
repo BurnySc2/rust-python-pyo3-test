@@ -9,6 +9,8 @@ use std::f32::EPSILON;
 use std::ops::Sub;
 
 use ndarray::Array2;
+use ndarray::Array1;
+use ndarray::ArrayBase;
 
 #[allow(dead_code)]
 pub fn absdiff<T>(x: T, y: T) -> T
@@ -144,9 +146,9 @@ impl Direction {
 }
 
 #[derive(Debug, Hash, Eq, PartialEq, Copy, Clone)]
-struct Point2d {
-    x: usize,
-    y: usize,
+pub struct Point2d {
+    pub x: usize,
+    pub y: usize,
 }
 
 impl Point2d {
@@ -244,7 +246,7 @@ impl PathFinder {
         let (mut left_blocked, mut right_blocked) = (left_is_blocked, right_is_blocked);
         // While the path ahead is not blocked: traverse
         while let Some(new_point) = self.new_point_in_grid(&old_point, &direction) {
-            //            println!("Traversing in new point {:?}", new_point);
+//            println!("Traversing in new point {:?}", new_point);
             if new_point == *target {
                 self.came_from.insert(new_point, start);
                 return;
@@ -503,6 +505,11 @@ impl PathFinder {
         // Return early when start is in the wall
         //        if self.grid[source.y][source.x] == 0 {
         if self.grid[[source.y, source.x]] == 0 {
+            println!("Returning early, source position is not in grid: {:?}", source);
+            return None;
+        }
+        if self.grid[[target.y, target.x]] == 0 {
+            println!("Returning early, target position is not in grid: {:?}", target);
             return None;
         }
 
@@ -600,7 +607,7 @@ static TARGET: Point2d = Point2d { x: 10, y: 12 };
 
 //pub fn jps_test(grid: [[u8; 100]; 100]) {
 //pub fn jps_test(grid: Vec<Vec<u8>>) {
-pub fn jps_test(grid: Array2<u8>) {
+pub fn jps_test(grid: Array2<u8>, source: Point2d, target: Point2d) -> Option<Vec<Point2d>> {
     let mut pf = PathFinder {
         grid,
         heuristic: String::from("octal"),
@@ -613,8 +620,9 @@ pub fn jps_test(grid: Array2<u8>) {
 
     //    println!("{:?}", pf.grid);
     //        println!("{:?}", array);
-    let path = pf.find_path(&SOURCE, &TARGET);
+    let path = pf.find_path(&source, &target);
     //    println!("RESULT {:?}", path);
+    return path;
 }
 
 //pub fn grid_setup(size: usize) ->  [[u8; 100]; 100] {
@@ -651,6 +659,35 @@ pub fn grid_setup(_size: usize) -> Array2<u8> {
         ndarray[[HEIGHT - 1, x]] = 0;
     }
     ndarray
+}
+
+use std::fs::File;
+use std::io::Read;
+pub fn read_grid_from_file(path: String) -> Result<(Array2<u8>, u32, u32), std::io::Error> {
+//    println!("Hello1");
+    let mut file = File::open(path)?;
+//    let mut data = Vec::new();
+    let mut data = String::new();
+
+    file.read_to_string(&mut data)?;
+    let mut height = 0;
+    let mut width = 0;
+    // Create one dimensional vec
+    let mut my_vec = Vec::new();
+    for line in data.lines() {
+        width = line.len();
+        height += 1;
+        for char in line.chars() {
+            my_vec.push(char as u8 - 48);
+        }
+    }
+
+    let array = ArrayBase::from(my_vec).into_shape((height, width)).unwrap();
+
+//    println!("vec: {:?}", my_vec);
+//    println!("array: {:?}", array);
+//    println!("Height: {}, width: {}", width, height);
+    Ok((array, height as u32, width as u32))
 }
 
 fn vec_2d_setup() -> Vec<Vec<u8>> {
@@ -721,9 +758,18 @@ mod tests {
     //        }
 
     #[bench]
+    fn bench_jps_test_from_file(b: &mut Bencher) {
+        let result = read_grid_from_file(String::from("src/AutomatonLE.txt"));
+    let (array, height, width) = result.unwrap();
+        let source = Point2d{x:32, y:51};
+        let target = Point2d{x:150, y:129};
+        b.iter(|| jps_test(array.clone(), source, target));
+    }
+
+    #[bench]
     fn bench_jps_test(b: &mut Bencher) {
         let grid = grid_setup(100);
-        b.iter(|| jps_test(grid.clone()));
+        b.iter(|| jps_test(grid.clone(), SOURCE, TARGET));
     }
 
     #[bench]
