@@ -44,8 +44,12 @@ random_bot_object: BotAI = next(bot_object_generator)
 # print(random_bot_object.enemy_start_locations)
 
 def main():
+    # start = (90, 100)
+    # goal = (100, 114)
+    # Spawn
     start = (29, 65)
     goal = (154, 114)
+    # Ramp
     # start = (32, 51)
     # goal = (150, 129)
     # map_grid = np.loadtxt("AutomatonLE.txt", delimiter="").astype(int)

@@ -1,7 +1,7 @@
 // https://github.com/mikolalysenko/l1-path-finder
 
 // https://en.wikipedia.org/wiki/Jump_point_search
-use std::collections::{BinaryHeap, HashMap};
+use std::collections::{BinaryHeap, HashMap, HashSet};
 
 use std::cmp::Ordering;
 use std::f32::consts::SQRT_2;
@@ -50,13 +50,24 @@ fn no_heuristic(_source: Point2d, _target: Point2d) -> f32 {
     0.0
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 struct Direction {
     x: i32,
     y: i32,
 }
 
 impl Direction {
+    fn is_diagonal(self) -> bool {
+        match self {
+            // Non diagonal movement
+            Direction { x: 0, y: 1 }
+            | Direction { x: 1, y: 0 }
+            | Direction { x: -1, y: 0 }
+            | Direction { x: 0, y: -1 } => false,
+            _ => true,
+        }
+    }
+
     // 90 degree left turns
     fn left(&self) -> Direction {
         match (self.x, self.y) {
@@ -133,7 +144,7 @@ impl Direction {
         }
     }
     // 135 degree right turns
-    fn right135(&self) -> Direction {
+    fn right135(self) -> Direction {
         match (self.x, self.y) {
             // Diagonal
             (1, 1) => Direction { x: 0, y: -1 },
@@ -164,7 +175,7 @@ impl Point2d {
             y: (self.y as i32 + other.1) as usize,
         }
     }
-    fn add_direction(&self, other: &Direction) -> Point2d {
+    fn add_direction(&self, other: Direction) -> Point2d {
         Point2d {
             x: (self.x as i32 + other.x) as usize,
             y: (self.y as i32 + other.y) as usize,
@@ -181,8 +192,8 @@ struct JumpPoint {
     direction: Direction,
     cost_to_start: f32,
     total_cost_estimate: f32,
-    left_is_blocked: bool,
-    right_is_blocked: bool,
+    //    left_is_blocked: bool,
+    //    right_is_blocked: bool,
 }
 
 impl PartialEq for JumpPoint {
@@ -217,6 +228,8 @@ struct PathFinder {
     jump_points: BinaryHeap<JumpPoint>,
     // Contains points which were already visited
     came_from: HashMap<Point2d, Point2d>,
+    checked: HashSet<Point2d>,
+    duplicate_checks: u64,
 }
 
 #[allow(dead_code)]
@@ -224,213 +237,129 @@ impl PathFinder {
     fn traverse(
         &mut self,
         start: Point2d,
-        direction: &Direction,
+        direction: Direction,
         target: &Point2d,
         cost_to_start: f32,
-        left_is_blocked: bool,
-        right_is_blocked: bool,
+        //        left_is_blocked: bool,
+        //        right_is_blocked: bool,
         heuristic: fn(Point2d, Point2d) -> f32,
     ) {
-        let mut traversed_count: u32 = 1;
-        let mut is_diagonal = false;
+        let mut traversed_count: u32 = 0;
+        //        let mut is_diagonal = false;
+        let add_nodes: Vec<(Direction, Direction)>;
+        let is_diagonal: bool;
         match direction {
+            // Non diagonal movement
             Direction { x: 0, y: 1 }
             | Direction { x: 1, y: 0 }
             | Direction { x: -1, y: 0 }
-            | Direction { x: 0, y: -1 } => (),
-            _ => is_diagonal = true,
+            | Direction { x: 0, y: -1 } => {
+                is_diagonal = false;
+                add_nodes = vec![
+                    (direction.left(), direction.half_left()),
+                    (direction.right(), direction.half_right()),
+                ];
+            }
+            _ => {
+                is_diagonal = true;
+                // The first two entries will be checked for left_blocked and right_blocked (forced neighbors?)
+                // If the vec has more than 2 elements, then the remaining will not be checked (this is the case in diagonal movement)
+                // (blocked_direction from current_node, traversal_direction)
+                add_nodes = vec![
+                    (direction.left135(), direction.left()),
+                    (direction.right135(), direction.right()),
+                    (direction.half_left(), direction.half_left()),
+                    (direction.half_right(), direction.half_right()),
+                ];
+            }
         }
+        let mut current_point = start;
+        let (mut left_blocked, mut right_blocked) = (false, false);
+        loop {
+            // Only executed for diagonal movement
+//            if traversed_count > 0 && self.checked.contains(&current_point) {
+//                self.duplicate_checks += 1;
+//            }
+//            self.checked.insert(current_point);
 
-        let _new_point = start;
-        let mut old_point = start;
-        let (mut left_blocked, mut right_blocked) = (left_is_blocked, right_is_blocked);
-        // While the path ahead is not blocked: traverse
-        while let Some(new_point) = self.new_point_in_grid(&old_point, &direction) {
-            //            println!("Traversing in new point {:?}", new_point);
-            if new_point == *target {
-                self.came_from.insert(new_point, start);
-                return;
+            for (index, (check_dir, traversal_dir)) in add_nodes.iter().enumerate() {
+                let temp_point = self.new_point_in_grid(&current_point, *check_dir);
+                if traversed_count > 0
+                    && (index == 0 && left_blocked || index == 1 && right_blocked || index > 1)
+                    && temp_point.is_some()
+                {
+                    self.insert_jump_point(
+                        start,
+                        current_point,
+                        *target,
+                        *traversal_dir,
+                        cost_to_start,
+                        traversed_count,
+                        heuristic,
+                    );
+                    if index == 0 {
+                        left_blocked = false;
+                    } else if index == 1 {
+                        right_blocked = false;
+                    }
+                } else if index == 0 && !left_blocked && temp_point.is_none() {
+                    left_blocked = true;
+                } else if index == 1 && !right_blocked && temp_point.is_none() {
+                    right_blocked = true
+                }
             }
 
-            if is_diagonal {
-                // Traversing diagonally
-                let left_blocked_45 = self.new_point_in_grid(&new_point, &direction.half_left());
-                let right_blocked_45 = self.new_point_in_grid(&new_point, &direction.half_right());
-
-                match left_blocked {
-                    // Left node was blocked before, but is now no longer blocked -> mark as new starting point to traverse from, with a left rotation of 90 degrees
-                    true => {
-                        if let Some(point) = self.new_point_in_grid(&new_point, &direction.left()) {
-                            left_blocked = false;
-                            let new_cost_to_start = traversed_count as f32 * SQRT_2 + cost_to_start;
-                            let new_cost_estimate = heuristic(point, *target);
-                            //                            println!("Traversing diagonally from {:?} in dir {:?} and adding left turn in {:?}", old_point, direction, point);
-                            self.jump_points.push(JumpPoint {
-                                start: point,
-                                direction: direction.left(),
-                                cost_to_start: new_cost_to_start,
-                                total_cost_estimate: new_cost_to_start + new_cost_estimate,
-                                left_is_blocked: true,
-                                right_is_blocked: left_blocked_45.is_none(),
-                            });
-                            self.came_from.insert(point, old_point);
-                            if old_point != start {
-                                self.came_from.insert(old_point, start);
-                            }
-                        }
-                    }
-                    // TODO on diagonal movement this check should be done before
-                    // Left node wasn't blocked before, but may be blocked now
-                    false => {
-                        if let Some(_p) = self.new_point_in_grid(&new_point, &direction.left135()) {
-                        } else {
-                            left_blocked = true;
-                        }
-                    }
+            if let Some(new_point) = self.new_point_in_grid(&current_point, direction) {
+                // Next traversal point is pathable, but do nothing
+                current_point = new_point;
+                if current_point == *target {
+                    //                    println!("Found goal: {:?}", current_point);
+                    self.came_from.insert(*target, start);
+                    break;
                 }
-
-                match right_blocked {
-                    // Right node was blocked before, but is now no longer blocked -> mark as new starting point to traverse from, with a right rotation of 90 degrees
-                    true => {
-                        if let Some(point) = self.new_point_in_grid(&new_point, &direction.right())
-                        {
-                            right_blocked = false;
-                            let new_cost_to_start = traversed_count as f32 * SQRT_2 + cost_to_start;
-                            let new_cost_estimate = heuristic(point, *target);
-                            //                            println!("Traversing diagonally from {:?} in dir {:?} and adding right turn in {:?}", old_point, direction, point);
-                            self.jump_points.push(JumpPoint {
-                                start: point,
-                                direction: direction.right(),
-                                cost_to_start: new_cost_to_start,
-                                total_cost_estimate: new_cost_to_start + new_cost_estimate,
-                                left_is_blocked: right_blocked_45.is_none(),
-                                right_is_blocked: true,
-                            });
-                            self.came_from.insert(point, old_point);
-                            if old_point != start {
-                                self.came_from.insert(old_point, start);
-                            }
-                        }
-                    }
-                    // TODO on diagonal movement this check should be done before
-                    // Right node wasn't blocked before, but may be blocked now
-                    false => {
-                        if let Some(_p) = self.new_point_in_grid(&new_point, &direction.left135()) {
-                        } else {
-                            left_blocked = true;
-                        }
-                    }
+                // If we were already in this point, don't traverse again
+                //                                                if is_diagonal && self.came_from.contains_key(&current_point) {
+                if self.came_from.contains_key(&current_point) {
+                    break;
                 }
-
-                // We are moving diagonally, so add points to traverse in a 45 degree left and right turn (horizontal + vertical traversal)
-
-                // Add 45 degree left turn
-                if let Some(point) = left_blocked_45 {
-                    let new_cost_to_start = (traversed_count) as f32 * SQRT_2 + cost_to_start;
-                    let new_cost_estimate = heuristic(point, *target);
-                    //                    println!("Traversing diagonally from {:?} in dir {:?} and adding left45 turn in {:?} and cost {:?}", old_point, direction, point, new_cost_to_start + new_cost_estimate);
-                    self.jump_points.push(JumpPoint {
-                        start: new_point,
-                        direction: direction.half_left(),
-                        cost_to_start: new_cost_to_start,
-                        total_cost_estimate: new_cost_to_start + new_cost_estimate,
-                        left_is_blocked: false,
-                        right_is_blocked: false,
-                    });
-                    self.came_from.insert(point, new_point);
-                    if new_point != start {
-                        self.came_from.insert(new_point, start);
-                    }
-                }
-
-                // Add 45 degree right turn
-                if let Some(point) = right_blocked_45 {
-                    let new_cost_to_start = (traversed_count) as f32 * SQRT_2 + cost_to_start;
-                    let new_cost_estimate = heuristic(point, *target);
-                    //                    println!("Traversing diagonally from {:?} in dir {:?} and adding right45 turn in {:?}", old_point, direction, point);
-                    self.jump_points.push(JumpPoint {
-                        start: new_point,
-                        direction: direction.half_right(),
-                        cost_to_start: new_cost_to_start,
-                        total_cost_estimate: new_cost_to_start + new_cost_estimate,
-                        left_is_blocked: false,
-                        right_is_blocked: false,
-                    });
-                    self.came_from.insert(point, new_point);
-                    if new_point != start {
-                        self.came_from.insert(new_point, start);
-                    }
-                }
+                traversed_count += 1;
             } else {
-                // Traversing vertically or horizontally
-
-                match left_blocked {
-                    // Left node was blocked before, but is now no longer blocked -> mark as new starting point to traverse from, with a left rotation of 45 degrees
-                    true => {
-                        if let Some(point) = self.new_point_in_grid(&new_point, &direction.left()) {
-                            left_blocked = false;
-                            let new_cost_to_start =
-                                (traversed_count - 1) as f32 * SQRT_2 + cost_to_start;
-                            let new_cost_estimate = heuristic(point, *target);
-                            //                            println!("Traversing vertically/horizontally from {:?} in dir {:?} and adding left45 turn in {:?}", old_point, direction, point);
-                            self.jump_points.push(JumpPoint {
-                                start: point,
-                                direction: direction.half_left(),
-                                cost_to_start: new_cost_to_start,
-                                total_cost_estimate: new_cost_to_start + new_cost_estimate,
-                                left_is_blocked: true,
-                                right_is_blocked: false,
-                            });
-                            self.came_from.insert(point, old_point);
-                            if old_point != start {
-                                self.came_from.insert(old_point, start);
-                            }
-                        }
-                    }
-                    // Left node wasn't blocked before, but may be blocked now
-                    false => {
-                        if let Some(_p) = self.new_point_in_grid(&new_point, &direction.left()) {
-                        } else {
-                            left_blocked = true;
-                        }
-                    }
-                }
-
-                match right_blocked {
-                    // Right node was blocked before, but is now no longer blocked -> mark as new starting point to traverse from, with a right rotation of 45 degrees
-                    true => {
-                        if let Some(point) = self.new_point_in_grid(&new_point, &direction.right())
-                        {
-                            right_blocked = false;
-                            let new_cost_to_start =
-                                (traversed_count - 1) as f32 * SQRT_2 + cost_to_start;
-                            let new_cost_estimate = heuristic(point, *target);
-                            //                            println!("Traversing vertically/horizontally from {:?} in dir {:?} and adding right45 turn in {:?}", old_point, direction, point);
-                            self.jump_points.push(JumpPoint {
-                                start: point,
-                                direction: direction.half_left(),
-                                cost_to_start: new_cost_to_start,
-                                total_cost_estimate: new_cost_to_start + new_cost_estimate,
-                                left_is_blocked: false,
-                                right_is_blocked: true,
-                            });
-                            self.came_from.insert(point, old_point);
-                            if old_point != start {
-                                self.came_from.insert(old_point, start);
-                            }
-                        }
-                    }
-                    // Right node wasn't blocked before, but may be blocked now
-                    false => {
-                        if let Some(_p) = self.new_point_in_grid(&new_point, &direction.right()) {
-                        } else {
-                            right_blocked = true;
-                        }
-                    }
-                }
+                // Next traversal point is a wall
+                break;
             }
-            old_point = new_point;
-            traversed_count += 1;
+        }
+    }
+
+    fn insert_jump_point(
+        &mut self,
+        start: Point2d,
+        current_point: Point2d,
+        target: Point2d,
+        traversal_dir: Direction,
+        cost_to_start: f32,
+        traversed_count: u32,
+        heuristic: fn(Point2d, Point2d) -> f32,
+    ) {
+        let new_cost_to_start = if traversal_dir.is_diagonal() {
+            cost_to_start + SQRT_2 * traversed_count as f32
+        } else {
+            cost_to_start + traversed_count as f32
+        };
+        let new_total_cost_estimate = new_cost_to_start + heuristic(current_point, target);
+
+        self.jump_points.push(JumpPoint {
+            start: current_point,
+            direction: traversal_dir,
+            cost_to_start: new_cost_to_start,
+            total_cost_estimate: new_cost_to_start + new_total_cost_estimate,
+        });
+        if traversed_count > 0 {
+            // Identical:
+            // if !self.came_from.contains_key(&current_point) {
+            //  self.came_from.insert(current_point, start);
+            // }
+            //            println!("Inserting {:?} : {:?}", current_point, start);
+            self.came_from.entry(current_point).or_insert(start);
         }
     }
 
@@ -438,9 +367,9 @@ impl PathFinder {
         //        self.grid[point.y][point.x] == 1
         self.grid[[point.y, point.x]] == 1
     }
-    fn new_point_in_grid(&self, point: &Point2d, direction: &Direction) -> Option<Point2d> {
+    fn new_point_in_grid(&self, point: &Point2d, direction: Direction) -> Option<Point2d> {
         // Returns new point if point in that direction is not blocked
-        let new_point = point.add_direction(&direction);
+        let new_point = point.add_direction(direction);
         if self.is_in_grid(new_point) {
             return Some(new_point);
         }
@@ -472,14 +401,17 @@ impl PathFinder {
         let mut path = vec![];
         let mut pos = self.came_from.get(&target)?;
 
+        println!("Duplciate checks: {:?}", self.duplicate_checks);
+
         if construct_full_path {
             let mut old_pos = target;
             path.push(target);
             loop {
                 let d = self.get_direction(old_pos, *pos);
                 while *pos != old_pos {
-                    old_pos = old_pos.add_direction(&d);
+                    old_pos = old_pos.add_direction(d);
                     path.push(old_pos);
+                    //                    println!("{:?}", old_pos);
                 }
                 if old_pos == source {
                     break;
@@ -490,6 +422,7 @@ impl PathFinder {
             path.push(target);
             loop {
                 path.push(*pos);
+                //                println!("{:?}", pos);
                 pos = self.came_from.get(pos)?;
                 if *pos == source {
                     break;
@@ -550,15 +483,15 @@ impl PathFinder {
             let new_node = source.add_tuple(*n);
             let estimate = heuristic(new_node, *target);
             let dir = Direction { x: n.0, y: n.1 };
-            let left_blocked = self.new_point_in_grid(source, &dir.left()).is_none();
-            let right_blocked = self.new_point_in_grid(source, &dir.right()).is_none();
+            let left_blocked = self.new_point_in_grid(source, dir.left()).is_none();
+            let right_blocked = self.new_point_in_grid(source, dir.right()).is_none();
             self.jump_points.push(JumpPoint {
                 start: *source,
                 direction: dir,
                 cost_to_start: 0.0,
                 total_cost_estimate: cost + estimate,
-                left_is_blocked: left_blocked,
-                right_is_blocked: right_blocked,
+                //                left_is_blocked: left_blocked,
+                //                right_is_blocked: right_blocked,
             });
             //            self.came_from.insert(new_node, *source);
         }
@@ -568,38 +501,25 @@ impl PathFinder {
             direction,
             cost_to_start,
             total_cost_estimate: _,
-            left_is_blocked,
-            right_is_blocked,
+            //            left_is_blocked,
+            //            right_is_blocked,
         }) = self.jump_points.pop()
         {
-            //            println!(
-            //                "Traversing point {:?} in direction {:?} with cost {:?} and total cost {:?}",
-            //                start, direction, cost_to_start, total_cost_estimate
-            //            );
             if !self.is_in_grid(start) {
-                //                println!("Continueing because startpoint is not in grid");
                 continue;
             }
 
-            //            if self.came_from.contains_key(&start) {
-            //                println!("This jump point was already visited, continuing");
-            //                continue;
-            //            }
-
             self.traverse(
                 start,
-                &direction,
+                direction,
                 &target,
                 cost_to_start,
-                left_is_blocked,
-                right_is_blocked,
+                //                left_is_blocked,
+                //                right_is_blocked,
                 heuristic,
             );
 
             if self.came_from.contains_key(target) {
-                //                println!("Target reached, constructing path");
-                //                println!("Came from hashmap: {:?}", self.came_from);
-
                 return self.construct_path(*source, *target, false);
             }
         }
@@ -619,50 +539,49 @@ pub fn jps_test(grid: Array2<u8>, source: Point2d, target: Point2d) -> Option<Ve
         heuristic: String::from("octal"),
         jump_points: BinaryHeap::new(),
         came_from: HashMap::new(),
+        checked: HashSet::new(),
+        duplicate_checks: 0,
     };
     //    let mut pf = PathFinder::default();
     //    pf.heuristic = String::from("euclidean");
     //    pf.grid = grid.clone();
 
-    //    println!("{:?}", pf.grid);
-    //        println!("{:?}", array);
     let path = pf.find_path(&source, &target);
-    //    println!("RESULT {:?}", path);
     return path;
 }
 
 //pub fn grid_setup(size: usize) ->  [[u8; 100]; 100] {
 //pub fn grid_setup(size: usize) ->  Vec<Vec<u8>> {
-pub fn grid_setup(_size: usize) -> Array2<u8> {
+pub fn grid_setup(size: usize) -> Array2<u8> {
     // https://stackoverflow.com/a/59043086/10882657
     // Width and height can be unknown at compile time
-    let width = 100;
-    let height = 100;
-    let mut grid = vec![vec![1; width]; height];
+    //    let width = 100;
+    //    let height = 100;
+    //    let mut grid = vec![vec![1; width]; height];
 
     // Width and height must be known at compile time
-    const WIDTH: usize = 100;
-    const HEIGHT: usize = 100;
-    let mut array = [[1u8; WIDTH]; HEIGHT];
+    //    const WIDTH: usize = 100;
+    //    const HEIGHT: usize = 100;
+    //    let mut array = [[1u8; WIDTH]; HEIGHT];
 
-    let mut ndarray = Array2::<u8>::ones((width, height));
+    let mut ndarray = Array2::<u8>::ones((size, size));
 
     // Set boundaries
-    for y in 0..HEIGHT {
-        grid[y][0] = 0;
-        grid[y][WIDTH - 1] = 0;
-        array[y][0] = 0;
-        array[y][WIDTH - 1] = 0;
+    for y in 0..size {
+        //        grid[y][0] = 0;
+        //        grid[y][WIDTH - 1] = 0;
+        //        array[y][0] = 0;
+        //        array[y][WIDTH - 1] = 0;
         ndarray[[y, 0]] = 0;
-        ndarray[[y, WIDTH - 1]] = 0;
+        ndarray[[y, size - 1]] = 0;
     }
-    for x in 0..WIDTH {
-        grid[0][x] = 0;
-        grid[HEIGHT - 1][x] = 0;
-        array[0][x] = 0;
-        array[HEIGHT - 1][x] = 0;
+    for x in 0..size {
+        //        grid[0][x] = 0;
+        //        grid[HEIGHT - 1][x] = 0;
+        //        array[0][x] = 0;
+        //        array[HEIGHT - 1][x] = 0;
         ndarray[[0, x]] = 0;
-        ndarray[[HEIGHT - 1, x]] = 0;
+        ndarray[[size - 1, x]] = 0;
     }
     ndarray
 }
@@ -670,7 +589,6 @@ pub fn grid_setup(_size: usize) -> Array2<u8> {
 use std::fs::File;
 use std::io::Read;
 pub fn read_grid_from_file(path: String) -> Result<(Array2<u8>, u32, u32), std::io::Error> {
-    //    println!("Hello1");
     let mut file = File::open(path)?;
     //    let mut data = Vec::new();
     let mut data = String::new();
@@ -689,13 +607,6 @@ pub fn read_grid_from_file(path: String) -> Result<(Array2<u8>, u32, u32), std::
     }
 
     let array = ArrayBase::from(my_vec).into_shape((height, width)).unwrap();
-//    for row in array.outer_iter() {
-//        println!("{:?}", row);
-//    }
-
-    //    println!("vec: {:?}", my_vec);
-    //    println!("array: {:?}", array);
-//        println!("Height: {}, width: {}", height, width);
     Ok((array, height as u32, width as u32))
 }
 
@@ -763,7 +674,6 @@ mod tests {
     //            let target = Point2d { x: 5, y: 10 };
     //
     //            let path = pf.find_path(source, target);
-    //    //        println!("RESULT mine {:?}", path);
     //        }
 
     #[bench]

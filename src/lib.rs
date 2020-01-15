@@ -11,210 +11,211 @@ https://docs.rs/pyo3/0.8.4/pyo3/index.html
 #![feature(test)]
 extern crate test;
 
+mod pathfinding_test;
+
 //#[allow(dead_code)]
 
-use pyo3::prelude::*;
-use pyo3::types::PyAny;
-use pyo3::wrap_pyfunction;
-use pyo3::PyObjectProtocol;
-// https://github.com/PyO3/pyo3
-
-// import inspect
-// print(inspect.signature(my_library.Point2))
-
-#[pyclass]
-#[derive(Copy, Clone, Debug)]
-#[text_signature = "(x, y, /)"]
-pub struct Point2 {
-    // For the .x and .y attributes to be accessable in python, it requires these macros
-    #[pyo3(get, set)]
-    x: f64,
-    #[pyo3(get, set)]
-    y: f64,
-}
-
-#[pymethods]
-impl Point2 {
-    #[new]
-    fn new(obj: &PyRawObject, x_: f64, y_: f64) {
-        obj.init(Point2 { x: x_, y: y_ })
-    }
-    #[text_signature = "(&self, other, /)"]
-    fn distance_to(&self, other: &Point2) -> f64 {
-        ((self.x - other.x).powi(2) + (self.y - other.y).powi(2)).sqrt()
-    }
-    fn distance_to_squared(&self, other: &Point2) -> f64 {
-        (self.x - other.x).powi(2) + (self.y - other.y).powi(2)
-    }
-}
-
-/// Implements the repr function for Point2 class: https://pyo3.rs/v0.8.4/class.html#string-conversions
-#[pyproto]
-impl PyObjectProtocol for Point2 {
-    fn __repr__(&self) -> PyResult<String> {
-        Ok(format!("Point2 ( x: {:?}, y: {:?} )", self.x, self.y))
-    }
-}
-
-// Necessary function implementation to convert a Point2 from python to rust
-/*
-class Point2:
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-# This class can now be used in rust as Point2
-*/
-impl<'source> FromPyObject<'source> for Point2 {
-    fn extract(ob: &'source PyAny) -> PyResult<Point2> {
-        unsafe {
-            let py = Python::assume_gil_acquired();
-            let obj = ob.to_object(py);
-            Ok(Self {
-                x: obj.getattr(py, "x")?.extract(py)?,
-                y: obj.getattr(py, "y")?.extract(py)?,
-            })
-        }
-    }
-}
-
-// The name of the class can be changed here, e.g. 'name=MyPoints' and will then be available through my_library.MyPoints instead
-#[pyclass(name=Point2Collection)]
-pub struct Point2Collection {
-    #[pyo3(get)]
-    points: Vec<Point2>,
-}
-
-#[pymethods]
-impl Point2Collection {
-    #[new]
-    fn new(obj: &PyRawObject, _points: Vec<&Point2>) {
-        let new_vec: Vec<Point2> = _points.into_iter().copied().collect();
-        obj.init(Point2Collection { points: new_vec })
-    }
-
-    fn len(&self) -> PyResult<usize> {
-        Ok(self.points.len())
-    }
-
-    fn append(&mut self, _point: Point2) {
-        self.points.push(_point);
-    }
-
-    fn print(&self) {
-        for i in self.points.clone() {
-            println!("{:?}", i);
-        }
-    }
-
-    fn closest_point(&self, other: &Point2) -> Point2 {
-        // TODO raise error when list of points is empty
-        assert!(!self.points.is_empty());
-        let mut iterable = self.points.clone().into_iter();
-        let mut closest = iterable.next().unwrap();
-        let mut distance_sq_closest = closest.distance_to_squared(other);
-        for p in iterable {
-            let p_distance_sq = p.distance_to_squared(other);
-            if p_distance_sq < distance_sq_closest {
-                closest = p;
-                distance_sq_closest = p_distance_sq;
-            }
-        }
-        closest
-    }
-}
-
-//use ndarray::{ArrayD, ArrayViewD, ArrayViewMutD};
-//use numpy::{IntoPyArray, PyArrayDyn};
-//// Numpy examples
+//use pyo3::prelude::*;
+//use pyo3::types::PyAny;
+//use pyo3::wrap_pyfunction;
+//use pyo3::PyObjectProtocol;
+//// https://github.com/PyO3/pyo3
 //
-//// immutable example
-//fn mult_with_return(a: f64, x: ArrayViewD<f64>) -> ArrayD<f64> {
-//    &x * a
-//    // Also works:
-//    // a * &x
+//// import inspect
+//// print(inspect.signature(my_library.Point2))
+//
+//#[pyclass]
+//#[derive(Copy, Clone, Debug)]
+//#[text_signature = "(x, y, /)"]
+//pub struct Point2 {
+//    // For the .x and .y attributes to be accessable in python, it requires these macros
+////    #[pyo3(get, set)]
+//    x: f64,
+////    #[pyo3(get, set)]
+//    y: f64,
 //}
 //
-//// mutable example (no return)
-//fn mult_mutable(a: f64, mut x: ArrayViewMutD<f64>) {
-//    x *= a;
+//#[pymethods]
+//impl Point2 {
+//    #[new]
+//    fn new(obj: &PyRawObject, x_: f64, y_: f64) {
+//        obj.init(Point2 { x: x_, y: y_ })
+//    }
+//    #[text_signature = "(&self, other, /)"]
+//    fn distance_to(&self, other: &Point2) -> f64 {
+//        ((self.x - other.x).powi(2) + (self.y - other.y).powi(2)).sqrt()
+//    }
+//    fn distance_to_squared(&self, other: &Point2) -> f64 {
+//        (self.x - other.x).powi(2) + (self.y - other.y).powi(2)
+//    }
 //}
 //
-//// wrapper of `axpy`
+///// Implements the repr function for Point2 class: https://pyo3.rs/v0.8.4/class.html#string-conversions
+//#[pyproto]
+//impl PyObjectProtocol for Point2 {
+//    fn __repr__(&self) -> PyResult<String> {
+//        Ok(format!("Point2 ( x: {:?}, y: {:?} )", self.x, self.y))
+//    }
+//}
+//
+//// Necessary function implementation to convert a Point2 from python to rust
+////*
+//class Point2:
+//    def __init__(self, x, y):
+//        self.x = x
+//        self.y = y
+//# This class can now be used in rust as Point2
+//*/
+//impl<'source> FromPyObject<'source> for Point2 {
+//    fn extract(ob: &'source PyAny) -> PyResult<Point2> {
+//        unsafe {
+//            let py = Python::assume_gil_acquired();
+//            let obj = ob.to_object(py);
+//            Ok(Self {
+//                x: obj.getattr(py, "x")?.extract(py)?,
+//                y: obj.getattr(py, "y")?.extract(py)?,
+//            })
+//        }
+//    }
+//}
+//
+//// The name of the class can be changed here, e.g. 'name=MyPoints' and will then be available through my_library.MyPoints instead
+//#[pyclass(name=Point2Collection)]
+//pub struct Point2Collection {
+////    #[pyo3(get)]
+//    points: Vec<Point2>,
+//}
+//
+//#[pymethods]
+//impl Point2Collection {
+//    #[new]
+//    fn new(obj: &PyRawObject, _points: Vec<&Point2>) {
+//        let new_vec: Vec<Point2> = _points.into_iter().copied().collect();
+//        obj.init(Point2Collection { points: new_vec })
+//    }
+//
+//    fn len(&self) -> PyResult<usize> {
+//        Ok(self.points.len())
+//    }
+//
+//    fn append(&mut self, _point: Point2) {
+//        self.points.push(_point);
+//    }
+//
+//    fn print(&self) {
+//        for i in self.points.clone() {
+//            println!("{:?}", i);
+//        }
+//    }
+//
+//    fn closest_point(&self, other: &Point2) -> Point2 {
+//        // TODO raise error when list of points is empty
+//        assert!(!self.points.is_empty());
+//        let mut iterable = self.points.clone().into_iter();
+//        let mut closest = iterable.next().unwrap();
+//        let mut distance_sq_closest = closest.distance_to_squared(other);
+//        for p in iterable {
+//            let p_distance_sq = p.distance_to_squared(other);
+//            if p_distance_sq < distance_sq_closest {
+//                closest = p;
+//                distance_sq_closest = p_distance_sq;
+//            }
+//        }
+//        closest
+//    }
+//}
+//
+////use ndarray::{ArrayD, ArrayViewD, ArrayViewMutD};
+////use numpy::{IntoPyArray, PyArrayDyn};
+////// Numpy examples
+////
+////// immutable example
+////fn mult_with_return(a: f64, x: ArrayViewD<f64>) -> ArrayD<f64> {
+////    &x * a
+////    // Also works:
+////    // a * &x
+////}
+////
+////// mutable example (no return)
+////fn mult_mutable(a: f64, mut x: ArrayViewMutD<f64>) {
+////    x *= a;
+////}
+////
+////// wrapper of `axpy`
+////#[pyfunction]
+////fn mult_with_return_py(py: Python, a: f64, x: &PyArrayDyn<f64>) -> Py<PyArrayDyn<f64>> {
+////    let x = x.as_array();
+////    mult_with_return(a, x).into_pyarray(py).to_owned()
+////}
+////
+////// wrapper of `mult`
+////#[pyfunction]
+////fn mult_mutable_py(_py: Python, a: f64, x: &PyArrayDyn<f64>) -> PyResult<()> {
+////    let x = x.as_array_mut();
+////    mult_mutable(a, x);
+////    Ok(())
+////}
+//
+////mod base;
+//// Simple examples
+//
+///// Formats the sum of two numbers as string
 //#[pyfunction]
-//fn mult_with_return_py(py: Python, a: f64, x: &PyArrayDyn<f64>) -> Py<PyArrayDyn<f64>> {
-//    let x = x.as_array();
-//    mult_with_return(a, x).into_pyarray(py).to_owned()
+//fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
+//    Ok((a + b).to_string())
 //}
 //
-//// wrapper of `mult`
+///// Iterative approach of calculating a factorial
 //#[pyfunction]
-//fn mult_mutable_py(_py: Python, a: f64, x: &PyArrayDyn<f64>) -> PyResult<()> {
-//    let x = x.as_array_mut();
-//    mult_mutable(a, x);
+//fn factorial_iter(input: u128) -> u128 {
+//    let mut result = 1;
+//    for i in 2..=input {
+//        result *= i
+//    }
+//    result
+//}
+//
+///// Recursive approach of calculating a factorial
+//#[pyfunction]
+//fn factorial(input: u128) -> u128 {
+//    if input == 1 {
+//        return 1u128;
+//    }
+//    input * factorial(input - 1)
+//}
+//
+///// This module is a python module implemented in Rust.
+///// This function name has to be the same as the lib.name declared in Cargo.toml
+//#[pymodule]
+//fn my_library(_py: Python, m: &PyModule) -> PyResult<()> {
+//    // Add all functions and classes (structs) here that need to be exported and callable via Python
+//
+//    // Functions to be exported
+//    m.add_wrapped(wrap_pyfunction!(sum_as_string))?;
+//    m.add_wrapped(wrap_pyfunction!(factorial))?;
+//    m.add_wrapped(wrap_pyfunction!(factorial_iter))?;
+//    //    m.add_wrapped(wrap_pyfunction!(mult_with_return_py))?;
+//    //    m.add_wrapped(wrap_pyfunction!(mult_mutable_py))?;
+//
+//    // Classes to be exported
+//    m.add_class::<Point2>()?;
+//    m.add_class::<Point2Collection>()?;
+//
 //    Ok(())
 //}
-
-mod pathfinding_test;
-//mod base;
-// Simple examples
-
-/// Formats the sum of two numbers as string
-#[pyfunction]
-fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
-    Ok((a + b).to_string())
-}
-
-/// Iterative approach of calculating a factorial
-#[pyfunction]
-fn factorial_iter(input: u128) -> u128 {
-    let mut result = 1;
-    for i in 2..=input {
-        result *= i
-    }
-    result
-}
-
-/// Recursive approach of calculating a factorial
-#[pyfunction]
-fn factorial(input: u128) -> u128 {
-    if input == 1 {
-        return 1u128;
-    }
-    input * factorial(input - 1)
-}
-
-/// This module is a python module implemented in Rust.
-/// This function name has to be the same as the lib.name declared in Cargo.toml
-#[pymodule]
-fn my_library(_py: Python, m: &PyModule) -> PyResult<()> {
-    // Add all functions and classes (structs) here that need to be exported and callable via Python
-
-    // Functions to be exported
-    m.add_wrapped(wrap_pyfunction!(sum_as_string))?;
-    m.add_wrapped(wrap_pyfunction!(factorial))?;
-    m.add_wrapped(wrap_pyfunction!(factorial_iter))?;
-    //    m.add_wrapped(wrap_pyfunction!(mult_with_return_py))?;
-    //    m.add_wrapped(wrap_pyfunction!(mult_mutable_py))?;
-
-    // Classes to be exported
-    m.add_class::<Point2>()?;
-    m.add_class::<Point2Collection>()?;
-
-    Ok(())
-}
-
-#[cfg(test)] // Only compiles when running tests
-mod tests {
-    use super::*;
-    #[allow(unused_imports)]
-    use test::Bencher;
-
-    // This will only be executed when using "cargo test" and not "cargo bench"
-    #[test]
-    fn test_factorial_function() {
-        assert_eq!(2, factorial(2));
-        assert_eq!(6, factorial(3));
-        assert_eq!(24, factorial(4));
-        assert_eq!(24, factorial_iter(4));
-    }
-}
+//
+//#[cfg(test)] // Only compiles when running tests
+//mod tests {
+//    use super::*;
+//    #[allow(unused_imports)]
+//    use test::Bencher;
+//
+//    // This will only be executed when using "cargo test" and not "cargo bench"
+//    #[test]
+//    fn test_factorial_function() {
+//        assert_eq!(2, factorial(2));
+//        assert_eq!(6, factorial(3));
+//        assert_eq!(24, factorial(4));
+//        assert_eq!(24, factorial_iter(4));
+//    }
+//}
