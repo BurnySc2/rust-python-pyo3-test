@@ -8,8 +8,8 @@ use std::f32::consts::SQRT_2;
 use std::f32::EPSILON;
 use std::ops::Sub;
 
-use ndarray::Array2;
 use ndarray::Array1;
+use ndarray::Array2;
 use ndarray::ArrayBase;
 
 #[allow(dead_code)]
@@ -246,7 +246,7 @@ impl PathFinder {
         let (mut left_blocked, mut right_blocked) = (left_is_blocked, right_is_blocked);
         // While the path ahead is not blocked: traverse
         while let Some(new_point) = self.new_point_in_grid(&old_point, &direction) {
-//            println!("Traversing in new point {:?}", new_point);
+            //            println!("Traversing in new point {:?}", new_point);
             if new_point == *target {
                 self.came_from.insert(new_point, start);
                 return;
@@ -294,7 +294,7 @@ impl PathFinder {
                     true => {
                         if let Some(point) = self.new_point_in_grid(&new_point, &direction.right())
                         {
-                            left_blocked = false;
+                            right_blocked = false;
                             let new_cost_to_start = traversed_count as f32 * SQRT_2 + cost_to_start;
                             let new_cost_estimate = heuristic(point, *target);
                             //                            println!("Traversing diagonally from {:?} in dir {:?} and adding right turn in {:?}", old_point, direction, point);
@@ -505,11 +505,17 @@ impl PathFinder {
         // Return early when start is in the wall
         //        if self.grid[source.y][source.x] == 0 {
         if self.grid[[source.y, source.x]] == 0 {
-            println!("Returning early, source position is not in grid: {:?}", source);
+            println!(
+                "Returning early, source position is not in grid: {:?}",
+                source
+            );
             return None;
         }
         if self.grid[[target.y, target.x]] == 0 {
-            println!("Returning early, target position is not in grid: {:?}", target);
+            println!(
+                "Returning early, target position is not in grid: {:?}",
+                target
+            );
             return None;
         }
 
@@ -594,7 +600,7 @@ impl PathFinder {
                 //                println!("Target reached, constructing path");
                 //                println!("Came from hashmap: {:?}", self.came_from);
 
-                return self.construct_path(*source, *target, true);
+                return self.construct_path(*source, *target, false);
             }
         }
 
@@ -664,9 +670,9 @@ pub fn grid_setup(_size: usize) -> Array2<u8> {
 use std::fs::File;
 use std::io::Read;
 pub fn read_grid_from_file(path: String) -> Result<(Array2<u8>, u32, u32), std::io::Error> {
-//    println!("Hello1");
+    //    println!("Hello1");
     let mut file = File::open(path)?;
-//    let mut data = Vec::new();
+    //    let mut data = Vec::new();
     let mut data = String::new();
 
     file.read_to_string(&mut data)?;
@@ -683,10 +689,13 @@ pub fn read_grid_from_file(path: String) -> Result<(Array2<u8>, u32, u32), std::
     }
 
     let array = ArrayBase::from(my_vec).into_shape((height, width)).unwrap();
+//    for row in array.outer_iter() {
+//        println!("{:?}", row);
+//    }
 
-//    println!("vec: {:?}", my_vec);
-//    println!("array: {:?}", array);
-//    println!("Height: {}, width: {}", width, height);
+    //    println!("vec: {:?}", my_vec);
+    //    println!("array: {:?}", array);
+//        println!("Height: {}, width: {}", height, width);
     Ok((array, height as u32, width as u32))
 }
 
@@ -760,9 +769,9 @@ mod tests {
     #[bench]
     fn bench_jps_test_from_file(b: &mut Bencher) {
         let result = read_grid_from_file(String::from("src/AutomatonLE.txt"));
-    let (array, height, width) = result.unwrap();
-        let source = Point2d{x:32, y:51};
-        let target = Point2d{x:150, y:129};
+        let (array, height, width) = result.unwrap();
+        let source = Point2d { x: 32, y: 51 };
+        let target = Point2d { x: 150, y: 129 };
         b.iter(|| jps_test(array.clone(), source, target));
     }
 
