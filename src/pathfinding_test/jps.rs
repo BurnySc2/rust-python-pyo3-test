@@ -181,6 +181,12 @@ impl Point2d {
             y: (self.y as i32 + other.y) as usize,
         }
     }
+    fn sub_direction(&self, other: Direction) -> Point2d {
+        Point2d {
+            x: (self.x as i32 - other.x) as usize,
+            y: (self.y as i32 - other.y) as usize,
+        }
+    }
     fn is_in_grid(&self, grid: Vec<Vec<u8>>) -> bool {
         grid[self.y][self.x] == 1
     }
@@ -244,7 +250,7 @@ impl PathFinder {
         //        right_is_blocked: bool,
         heuristic: fn(Point2d, Point2d) -> f32,
     ) {
-        let mut traversed_count: u32 = 0;
+        let mut traversed_count: u32 = 1;
         //        let mut is_diagonal = false;
         let add_nodes: Vec<(Direction, Direction)>;
         let is_diagonal: bool;
@@ -273,15 +279,17 @@ impl PathFinder {
                 ];
             }
         }
-        let mut current_point = start;
+        let mut old_point = start;
         let (mut left_blocked, mut right_blocked) = (false, false);
-        loop {
-            // Only executed for diagonal movement
-//            if traversed_count > 0 && self.checked.contains(&current_point) {
-//                self.duplicate_checks += 1;
-//            }
-//            self.checked.insert(current_point);
-
+        while let Some(current_point) = self.new_point_in_grid(&old_point, direction) {
+            if self.came_from.contains_key(&current_point) {
+                break;
+            }
+            if current_point == *target {
+                println!("Found goal: {:?}", current_point);
+                self.came_from.insert(*target, start);
+                break;
+            }
             for (index, (check_dir, traversal_dir)) in add_nodes.iter().enumerate() {
                 let temp_point = self.new_point_in_grid(&current_point, *check_dir);
                 if traversed_count > 0
@@ -308,25 +316,8 @@ impl PathFinder {
                     right_blocked = true
                 }
             }
-
-            if let Some(new_point) = self.new_point_in_grid(&current_point, direction) {
-                // Next traversal point is pathable, but do nothing
-                current_point = new_point;
-                if current_point == *target {
-                    //                    println!("Found goal: {:?}", current_point);
-                    self.came_from.insert(*target, start);
-                    break;
-                }
-                // If we were already in this point, don't traverse again
-                //                                                if is_diagonal && self.came_from.contains_key(&current_point) {
-                if self.came_from.contains_key(&current_point) {
-                    break;
-                }
-                traversed_count += 1;
-            } else {
-                // Next traversal point is a wall
-                break;
-            }
+            traversed_count += 1;
+            old_point = current_point;
         }
     }
 
