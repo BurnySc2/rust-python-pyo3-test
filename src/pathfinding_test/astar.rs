@@ -28,9 +28,9 @@ where
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Point2d {
     // For the .x and .y attributes to be accessable in python, it requires these macros
-//    #[pyo3(get, set)]
+    #[pyo3(get, set)]
     x: i32,
-//    #[pyo3(get, set)]
+    #[pyo3(get, set)]
     y: i32,
 }
 
