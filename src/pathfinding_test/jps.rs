@@ -115,7 +115,7 @@ impl Direction {
     }
 
     // 90 degree left turns
-    fn left(&self) -> Direction {
+    fn left(self) -> Direction {
         match (self.x, self.y) {
             (1, 0) => Direction { x: 0, y: 1 },
             (0, 1) => Direction { x: -1, y: 0 },
@@ -131,7 +131,7 @@ impl Direction {
     }
 
     // 90 degree right turns
-    fn right(&self) -> Direction {
+    fn right(self) -> Direction {
         match (self.x, self.y) {
             (1, 0) => Direction { x: 0, y: -1 },
             (0, 1) => Direction { x: 1, y: 0 },
@@ -147,7 +147,7 @@ impl Direction {
     }
 
     // 45 degree left turns
-    fn half_left(&self) -> Direction {
+    fn half_left(self) -> Direction {
         match (self.x, self.y) {
             (1, 0) => Direction { x: 1, y: 1 },
             (0, 1) => Direction { x: -1, y: 1 },
@@ -163,7 +163,7 @@ impl Direction {
     }
 
     // 45 degree right turns
-    fn half_right(&self) -> Direction {
+    fn half_right(self) -> Direction {
         match (self.x, self.y) {
             (1, 0) => Direction { x: 1, y: -1 },
             (0, 1) => Direction { x: 1, y: 1 },
@@ -179,7 +179,7 @@ impl Direction {
     }
 
     // 135 degree left turns
-    fn left135(&self) -> Direction {
+    fn left135(self) -> Direction {
         match (self.x, self.y) {
             // Diagonal
             (1, 1) => Direction { x: -1, y: 0 },
@@ -286,35 +286,24 @@ impl PathFinder {
         target: &Point2d,
         cost_to_start: f32,
         heuristic: fn(Point2d, Point2d) -> f32,
-    ) -> bool {
+    ) {
         let mut traversed_count: u32 = 0;
-        let mut added_forced_neighbor = false;
         let add_nodes: Vec<(Direction, Direction)>;
-        let is_diagonal: bool;
-        match direction {
-            // Non diagonal movement
-            Direction { x: 0, y: 1 }
-            | Direction { x: 1, y: 0 }
-            | Direction { x: -1, y: 0 }
-            | Direction { x: 0, y: -1 } => {
-                is_diagonal = false;
-                add_nodes = vec![
-                    (direction.left(), direction.half_left()),
-                    (direction.right(), direction.half_right()),
-                ];
-            }
-            _ => {
-                is_diagonal = true;
-                // The first two entries will be checked for left_blocked and right_blocked (forced neighbors?)
-                // If the vec has more than 2 elements, then the remaining will not be checked (this is the case in diagonal movement)
-                // (blocked_direction from current_node, traversal_direction)
-                add_nodes = vec![
-                    (direction.left135(), direction.left()),
-                    (direction.right135(), direction.right()),
-                    (direction.half_left(), direction.half_left()),
-                    (direction.half_right(), direction.half_right()),
-                ];
-            }
+        if direction.is_diagonal() {
+            // The first two entries will be checked for left_blocked and right_blocked (forced neighbors?)
+            // If the vec has more than 2 elements, then the remaining will not be checked (this is the case in diagonal movement)
+            // (blocked_direction from current_node, traversal_direction)
+            add_nodes = vec![
+                (direction.left135(), direction.left()),
+                (direction.right135(), direction.right()),
+                (direction.half_left(), direction.half_left()),
+                (direction.half_right(), direction.half_right()),
+            ];
+        } else {
+            add_nodes = vec![
+                (direction.left(), direction.half_left()),
+                (direction.right(), direction.half_right()),
+            ];
         }
         let mut current_point = start;
         let (mut left_blocked, mut right_blocked) = (false, false);
@@ -331,20 +320,16 @@ impl PathFinder {
                         cost_to_start + traversed_count as f32
                     };
 
-                    // If this is diagonal traversal, instantly traverse the non-diagonal directions without adding them to min-heap
                     if index > 1 {
-                        //                        println!("Diagonal to non-diag traversal in point {:?} in dir {:?}", current_point, traversal_dir);
-                        let added_forced_neighbor_from_non_diagonal_traversal = self.traverse(
+                        // If this is diagonal traversal, instantly traverse the non-diagonal directions without adding them to min-heap
+                        // println!("Diagonal to non-diag traversal in point {:?} in dir {:?}", current_point, traversal_dir);
+                        self.traverse(
                             current_point,
                             *traversal_dir,
                             target,
                             new_cost_to_start,
                             heuristic,
                         );
-                        if added_forced_neighbor_from_non_diagonal_traversal {
-                            added_forced_neighbor =
-                                added_forced_neighbor_from_non_diagonal_traversal;
-                        }
                     } else {
                         let new_total_cost_estimate =
                             new_cost_to_start + heuristic(current_point, *target);
@@ -355,16 +340,15 @@ impl PathFinder {
                             cost_to_start: new_cost_to_start,
                             total_cost_estimate: new_cost_to_start + new_total_cost_estimate,
                         });
-                        added_forced_neighbor = true;
                     }
                     if index == 0 {
                         left_blocked = false;
                     } else if index == 1 {
                         right_blocked = false;
                     }
-                } else if index == 0 && !left_blocked && temp_point.is_none() {
+                } else if index == 0 && temp_point.is_none() {
                     left_blocked = true;
-                } else if index == 1 && !right_blocked && temp_point.is_none() {
+                } else if index == 1 && temp_point.is_none() {
                     right_blocked = true
                 }
             }
@@ -382,6 +366,7 @@ impl PathFinder {
                 ////                        self.came_from_grid[(current_point.y, current_point.x)]
                 //                    );
                 //                }
+                // If we already visited this point, break
                 if self.add_came_from(&current_point, direction) {
                     self.duplicate_checks += 1;
                     break;
@@ -396,7 +381,6 @@ impl PathFinder {
                 break;
             }
         }
-        return added_forced_neighbor;
     }
 
     fn add_came_from(&mut self, p: &Point2d, d: Direction) -> bool {
