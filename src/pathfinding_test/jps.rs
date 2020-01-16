@@ -181,12 +181,6 @@ impl Point2d {
             y: (self.y as i32 + other.y) as usize,
         }
     }
-    fn sub_direction(&self, other: Direction) -> Point2d {
-        Point2d {
-            x: (self.x as i32 - other.x) as usize,
-            y: (self.y as i32 - other.y) as usize,
-        }
-    }
     fn is_in_grid(&self, grid: Vec<Vec<u8>>) -> bool {
         grid[self.y][self.x] == 1
     }
@@ -250,7 +244,7 @@ impl PathFinder {
         //        right_is_blocked: bool,
         heuristic: fn(Point2d, Point2d) -> f32,
     ) {
-        let mut traversed_count: u32 = 1;
+        let mut traversed_count: u32 = 0;
         //        let mut is_diagonal = false;
         let add_nodes: Vec<(Direction, Direction)>;
         let is_diagonal: bool;
@@ -279,32 +273,43 @@ impl PathFinder {
                 ];
             }
         }
-        let mut old_point = start;
+        let mut current_point = start;
         let (mut left_blocked, mut right_blocked) = (false, false);
-        while let Some(current_point) = self.new_point_in_grid(&old_point, direction) {
-            if self.came_from.contains_key(&current_point) {
-                break;
-            }
-            if current_point == *target {
-                println!("Found goal: {:?}", current_point);
-                self.came_from.insert(*target, start);
-                break;
-            }
+        loop {
+            // Only executed for diagonal movement
+            //            if traversed_count > 0 && self.checked.contains(&current_point) {
+            //                self.duplicate_checks += 1;
+            //            }
+            //            self.checked.insert(current_point);
+
             for (index, (check_dir, traversal_dir)) in add_nodes.iter().enumerate() {
                 let temp_point = self.new_point_in_grid(&current_point, *check_dir);
                 if traversed_count > 0
                     && (index == 0 && left_blocked || index == 1 && right_blocked || index > 1)
                     && temp_point.is_some()
                 {
-                    self.insert_jump_point(
-                        start,
-                        current_point,
-                        *target,
-                        *traversal_dir,
-                        cost_to_start,
-                        traversed_count,
-                        heuristic,
-                    );
+                    let new_cost_to_start = if traversal_dir.is_diagonal() {
+                        cost_to_start + SQRT_2 * traversed_count as f32
+                    } else {
+                        cost_to_start + traversed_count as f32
+                    };
+                    let new_total_cost_estimate =
+                        new_cost_to_start + heuristic(current_point, *target);
+
+                    self.jump_points.push(JumpPoint {
+                        start: current_point,
+                        direction: *traversal_dir,
+                        cost_to_start: new_cost_to_start,
+                        total_cost_estimate: new_cost_to_start + new_total_cost_estimate,
+                    });
+                    if traversed_count > 0 {
+                        // Identical:
+                        // if !self.came_from.contains_key(&current_point) {
+                        //  self.came_from.insert(current_point, start);
+                        // }
+                        //            println!("Inserting {:?} : {:?}", current_point, start);
+                        self.came_from.entry(current_point).or_insert(start);
+                    }
                     if index == 0 {
                         left_blocked = false;
                     } else if index == 1 {
@@ -316,41 +321,25 @@ impl PathFinder {
                     right_blocked = true
                 }
             }
-            traversed_count += 1;
-            old_point = current_point;
-        }
-    }
 
-    fn insert_jump_point(
-        &mut self,
-        start: Point2d,
-        current_point: Point2d,
-        target: Point2d,
-        traversal_dir: Direction,
-        cost_to_start: f32,
-        traversed_count: u32,
-        heuristic: fn(Point2d, Point2d) -> f32,
-    ) {
-        let new_cost_to_start = if traversal_dir.is_diagonal() {
-            cost_to_start + SQRT_2 * traversed_count as f32
-        } else {
-            cost_to_start + traversed_count as f32
-        };
-        let new_total_cost_estimate = new_cost_to_start + heuristic(current_point, target);
-
-        self.jump_points.push(JumpPoint {
-            start: current_point,
-            direction: traversal_dir,
-            cost_to_start: new_cost_to_start,
-            total_cost_estimate: new_cost_to_start + new_total_cost_estimate,
-        });
-        if traversed_count > 0 {
-            // Identical:
-            // if !self.came_from.contains_key(&current_point) {
-            //  self.came_from.insert(current_point, start);
-            // }
-            //            println!("Inserting {:?} : {:?}", current_point, start);
-            self.came_from.entry(current_point).or_insert(start);
+            if let Some(new_point) = self.new_point_in_grid(&current_point, direction) {
+                // Next traversal point is pathable, but do nothing
+                current_point = new_point;
+                if current_point == *target {
+                    //                    println!("Found goal: {:?}", current_point);
+                    self.came_from.insert(*target, start);
+                    break;
+                }
+                // If we were already in this point, don't traverse again
+                //                                                if is_diagonal && self.came_from.contains_key(&current_point) {
+                if self.came_from.contains_key(&current_point) {
+                    break;
+                }
+                traversed_count += 1;
+            } else {
+                // Next traversal point is a wall
+                break;
+            }
         }
     }
 
@@ -545,32 +534,13 @@ pub fn jps_test(grid: Array2<u8>, source: Point2d, target: Point2d) -> Option<Ve
 //pub fn grid_setup(size: usize) ->  Vec<Vec<u8>> {
 pub fn grid_setup(size: usize) -> Array2<u8> {
     // https://stackoverflow.com/a/59043086/10882657
-    // Width and height can be unknown at compile time
-    //    let width = 100;
-    //    let height = 100;
-    //    let mut grid = vec![vec![1; width]; height];
-
-    // Width and height must be known at compile time
-    //    const WIDTH: usize = 100;
-    //    const HEIGHT: usize = 100;
-    //    let mut array = [[1u8; WIDTH]; HEIGHT];
-
     let mut ndarray = Array2::<u8>::ones((size, size));
-
     // Set boundaries
     for y in 0..size {
-        //        grid[y][0] = 0;
-        //        grid[y][WIDTH - 1] = 0;
-        //        array[y][0] = 0;
-        //        array[y][WIDTH - 1] = 0;
         ndarray[[y, 0]] = 0;
         ndarray[[y, size - 1]] = 0;
     }
     for x in 0..size {
-        //        grid[0][x] = 0;
-        //        grid[HEIGHT - 1][x] = 0;
-        //        array[0][x] = 0;
-        //        array[HEIGHT - 1][x] = 0;
         ndarray[[0, x]] = 0;
         ndarray[[size - 1, x]] = 0;
     }
@@ -651,21 +621,6 @@ mod tests {
     use super::*;
     #[allow(unused_imports)]
     use test::Bencher;
-
-    //     This will only be executed when using "cargo test" and not "cargo bench"
-    //        #[test]
-    //        fn test_path() {
-    //            let pf = PathFinder {
-    //                allow_diagonal: true,
-    //                heuristic: String::from("octal"),
-    //                grid: vec![vec![]],
-    //            };
-    //
-    //            let source = Point2d { x: 0, y: 0 };
-    //            let target = Point2d { x: 5, y: 10 };
-    //
-    //            let path = pf.find_path(source, target);
-    //        }
 
     #[bench]
     fn bench_jps_test_from_file(b: &mut Bencher) {

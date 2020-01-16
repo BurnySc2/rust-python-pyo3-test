@@ -23,11 +23,14 @@ fn main() {
     //    // Test on actual map AutomatonLE.txt
     let result = pathfinding_test::jps::read_grid_from_file(String::from("src/AutomatonLE.txt"));
     let (array, height, width) = result.unwrap();
-    //    let source = pathfinding_test::jps::Point2d { x: 70, y: 100 };
+    //        let source = pathfinding_test::jps::Point2d { x: 70, y: 100 };
+    //    let target = pathfinding_test::jps::Point2d { x: 100, y: 114 };
+
     let source = pathfinding_test::jps::Point2d { x: 29, y: 65 };
     let target = pathfinding_test::jps::Point2d { x: 154, y: 114 };
-    //            let source = pathfinding_test::jps::Point2d { x: 32, y: 51 };
-    //            let target = pathfinding_test::jps::Point2d { x: 150, y: 129 };
+
+    //                let source = pathfinding_test::jps::Point2d { x: 32, y: 51 };
+    //                let target = pathfinding_test::jps::Point2d { x: 150, y: 129 };
     let path = pathfinding_test::jps::jps_test(array, source, target);
     println!("Path: {:?}", path);
 
