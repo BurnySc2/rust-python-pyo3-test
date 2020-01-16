@@ -243,8 +243,9 @@ impl PathFinder {
         //        left_is_blocked: bool,
         //        right_is_blocked: bool,
         heuristic: fn(Point2d, Point2d) -> f32,
-    ) {
+    ) -> bool {
         let mut traversed_count: u32 = 0;
+        let mut added_forced_neighbor = false;
         //        let mut is_diagonal = false;
         let add_nodes: Vec<(Direction, Direction)>;
         let is_diagonal: bool;
@@ -296,19 +297,23 @@ impl PathFinder {
                     let new_total_cost_estimate =
                         new_cost_to_start + heuristic(current_point, *target);
 
-                    self.jump_points.push(JumpPoint {
-                        start: current_point,
-                        direction: *traversal_dir,
-                        cost_to_start: new_cost_to_start,
-                        total_cost_estimate: new_cost_to_start + new_total_cost_estimate,
-                    });
-                    if traversed_count > 0 {
-                        // Identical:
-                        // if !self.came_from.contains_key(&current_point) {
-                        //  self.came_from.insert(current_point, start);
-                        // }
-                        //            println!("Inserting {:?} : {:?}", current_point, start);
+                    // If this is diagonal traversal, instantly traverse the non-diagonal directions without adding them to min-heap
+                    if index > 2 {
+                        let added_forced_neighbor_from_non_diagonal_traversal = self.traverse(current_point, *traversal_dir, target, new_cost_to_start, heuristic);
+                        if added_forced_neighbor_from_non_diagonal_traversal {
+                            added_forced_neighbor = added_forced_neighbor_from_non_diagonal_traversal;
+                            self.came_from.entry(current_point).or_insert(start);
+                        }
+                    } else {
+                        // Add forced neighbor to min-heap
+                        self.jump_points.push(JumpPoint {
+                            start: current_point,
+                            direction: *traversal_dir,
+                            cost_to_start: new_cost_to_start,
+                            total_cost_estimate: new_cost_to_start + new_total_cost_estimate,
+                        });
                         self.came_from.entry(current_point).or_insert(start);
+                        added_forced_neighbor = true;
                     }
                     if index == 0 {
                         left_blocked = false;
@@ -323,7 +328,7 @@ impl PathFinder {
             }
 
             if let Some(new_point) = self.new_point_in_grid(&current_point, direction) {
-                // Next traversal point is pathable, but do nothing
+                // Next traversal point is pathable
                 current_point = new_point;
                 if current_point == *target {
                     //                    println!("Found goal: {:?}", current_point);
@@ -341,6 +346,7 @@ impl PathFinder {
                 break;
             }
         }
+        return added_forced_neighbor;
     }
 
     fn is_in_grid(&self, point: Point2d) -> bool {
