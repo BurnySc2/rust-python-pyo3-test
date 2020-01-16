@@ -274,8 +274,6 @@ struct PathFinder {
     jump_points: BinaryHeap<JumpPoint>,
     // Contains points which were already visited
     came_from_grid: Array2<u8>,
-    came_from: HashMap<Point2d, Point2d>,
-    checked: HashSet<Point2d>,
     duplicate_checks: u64,
 }
 
@@ -291,7 +289,6 @@ impl PathFinder {
     ) -> bool {
         let mut traversed_count: u32 = 0;
         let mut added_forced_neighbor = false;
-        //        let mut is_diagonal = false;
         let add_nodes: Vec<(Direction, Direction)>;
         let is_diagonal: bool;
         match direction {
@@ -386,8 +383,7 @@ impl PathFinder {
                 //                    );
                 //                }
                 if self.add_came_from(&current_point, direction) {
-                    //                    println!("Breaking, found duplicate");
-                    //                    self.duplicate_checks += 1;
+                    self.duplicate_checks += 1;
                     break;
                 }
                 if current_point == *target {
@@ -450,30 +446,17 @@ impl PathFinder {
         let mut path = vec![];
         let mut pos = target;
         let mut dir: u8;
-        //        let mut dir = self.came_from_grid[(target.y, target.x)];
-        //        let mut pos = target.add_direction(Direction::from_value_reverse(dir));
         println!("Duplciate checks: {:?}", self.duplicate_checks);
 
         if construct_full_path {
-            //            let mut old_pos = target;
             path.push(target);
             while pos != source {
                 dir = self.came_from_grid[(pos.y, pos.x)];
                 pos = pos.add_direction(Direction::from_value_reverse(dir));
                 path.push(pos);
-                //                    println!("{:?}", old_pos);
             }
         } else {
-            //            path.push(target);
-            //            loop {
-            //                path.push(*pos);
-            //                //                println!("{:?}", pos);
-            ////                pos = self.came_from.get(pos)?;
-            ////                if *pos == source {
-            ////                    break;
-            ////                }
-            //            }
-            //            path.push(source);
+            // TODO only construct some part of the path (jump points)
         }
         path.reverse();
         Some(path)
@@ -535,11 +518,8 @@ impl PathFinder {
                 direction: dir,
                 cost_to_start: cost_to_start,
                 total_cost_estimate: cost_to_start + estimate,
-                //                left_is_blocked: left_blocked,
-                //                right_is_blocked: right_blocked,
             });
             self.add_came_from(&new_node, dir);
-            //            self.came_from.insert(new_node, *source);
         }
 
         while let Some(JumpPoint {
@@ -547,23 +527,9 @@ impl PathFinder {
             direction,
             cost_to_start,
             total_cost_estimate: _,
-            //            left_is_blocked,
-            //            right_is_blocked,
         }) = self.jump_points.pop()
         {
-            if !self.is_in_grid(start) {
-                continue;
-            }
-
-            self.traverse(
-                start,
-                direction,
-                &target,
-                cost_to_start,
-                //                left_is_blocked,
-                //                right_is_blocked,
-                heuristic,
-            );
+            self.traverse(start, direction, &target, cost_to_start, heuristic);
 
             if self.came_from_grid[(target.y, target.x)] != 0 {
                 return self.construct_path(*source, *target, true);
@@ -586,8 +552,6 @@ pub fn jps_test(grid: Array2<u8>, source: Point2d, target: Point2d) -> Option<Ve
         heuristic: String::from("octal"),
         jump_points: BinaryHeap::new(),
         came_from_grid: came_from_grid,
-        came_from: HashMap::new(),
-        checked: HashSet::new(),
         duplicate_checks: 0,
     };
     let path = pf.find_path(&source, &target);
