@@ -54,7 +54,7 @@ def main():
     # goal = (150, 129)
     # map_grid = np.loadtxt("AutomatonLE.txt", delimiter="").astype(int)
     grid = []
-    with open("AutomatonLE.txt") as f:
+    with open("../AutomatonLE.txt") as f:
         for line in f.readlines():
             values = [int(i) for i in list(line.strip())]
             grid.append(values)

@@ -425,7 +425,7 @@ mod tests {
 
     #[bench]
     fn bench_astar_test_from_file(b: &mut Bencher) {
-        let result = read_grid_from_file(String::from("src/AutomatonLE.txt"));
+        let result = read_grid_from_file(String::from("AutomatonLE.txt"));
         let (array, height, width) = result.unwrap();
         let source = Point2d { x: 32, y: 51 };
         let target = Point2d { x: 150, y: 129 };

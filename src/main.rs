@@ -11,7 +11,7 @@ pub mod pathfinding_test;
 
 fn write_path_to_file(path: Vec<pathfinding_test::jps::Point2d>) {
     //    let mut tuple_vec = vec![];
-    let mut file = File::create("src/path.txt").unwrap();
+    let mut file = File::create("path.txt").unwrap();
     for i in path.iter() {
         let pathfinding_test::jps::Point2d { x, y } = i;
         //        tuple_vec.push((x, y));
@@ -21,7 +21,7 @@ fn write_path_to_file(path: Vec<pathfinding_test::jps::Point2d>) {
 
 fn main() {
     //    // Test on actual map AutomatonLE.txt
-    let result = pathfinding_test::jps::read_grid_from_file(String::from("src/AutomatonLE.txt"));
+    let result = pathfinding_test::jps::read_grid_from_file(String::from("AutomatonLE.txt"));
     let (array, height, width) = result.unwrap();
     //        let source = pathfinding_test::jps::Point2d { x: 70, y: 100 };
     //        let target = pathfinding_test::jps::Point2d { x: 100, y: 114 };
@@ -32,7 +32,7 @@ fn main() {
     //                    let source = pathfinding_test::jps::Point2d { x: 32, y: 51 };
     //                    let target = pathfinding_test::jps::Point2d { x: 150, y: 129 };
     let path = pathfinding_test::jps::jps_test(array, source, target);
-//    println!("Path: {:?}", path);
+    println!("Path: {:?}", path);
 
     // Test on empty 100x100 grid
     //            let source = pathfinding_test::jps::Point2d { x: 5, y: 5 };
