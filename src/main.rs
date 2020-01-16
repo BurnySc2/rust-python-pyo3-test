@@ -32,7 +32,7 @@ fn main() {
     //                    let source = pathfinding_test::jps::Point2d { x: 32, y: 51 };
     //                    let target = pathfinding_test::jps::Point2d { x: 150, y: 129 };
     let path = pathfinding_test::jps::jps_test(array, source, target);
-    println!("Path: {:?}", path);
+//    println!("Path: {:?}", path);
 
     // Test on empty 100x100 grid
     //            let source = pathfinding_test::jps::Point2d { x: 5, y: 5 };

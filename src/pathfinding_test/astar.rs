@@ -13,6 +13,13 @@ use pyo3::types::PyAny;
 
 use std::ops::Sub;
 
+use ndarray::Array;
+use ndarray::Array1;
+use ndarray::Array2;
+
+use std::fs::File;
+use std::io::Read;
+
 pub fn absdiff<T>(x: T, y: T) -> T
 where
     T: Sub<Output = T> + PartialOrd,
@@ -115,20 +122,20 @@ impl Ord for Node {
 
 impl Eq for Node {}
 
-fn manhattan_heuristic(source: Point2d, target: Point2d) -> f32 {
+fn manhattan_heuristic(source: &Point2d, target: &Point2d) -> f32 {
     (absdiff(source.x, target.x) + absdiff(source.y, target.y)) as f32
 }
 
 static SQRT_2_MINUS_2: f32 = SQRT_2 - 2.0;
 
-fn octal_heuristic(source: Point2d, target: Point2d) -> f32 {
+fn octal_heuristic(source: &Point2d, target: &Point2d) -> f32 {
     let dx = absdiff(source.x, target.x);
     let dy = absdiff(source.y, target.y);
     let min = std::cmp::min(dx, dy);
     dx as f32 + dy as f32 + SQRT_2_MINUS_2 * min as f32
 }
 
-fn euclidean_heuristic(source: Point2d, target: Point2d) -> f32 {
+fn euclidean_heuristic(source: &Point2d, target: &Point2d) -> f32 {
     let x = source.x - target.x;
     let xx = x * x;
     let y = source.y - target.y;
@@ -137,13 +144,13 @@ fn euclidean_heuristic(source: Point2d, target: Point2d) -> f32 {
     ((xx + yy) as f32).sqrt()
 }
 
-fn no_heuristic(_source: Point2d, _target: Point2d) -> f32 {
+fn no_heuristic(_source: &Point2d, _target: &Point2d) -> f32 {
     0.0
 }
 
 fn construct_path(
-    source: Point2d,
-    target: Point2d,
+    source: &Point2d,
+    target: &Point2d,
     nodes_map: &HashMap<Point2d, Point2d>,
 ) -> Option<Vec<Point2d>> {
     let mut path = vec![];
@@ -151,11 +158,11 @@ fn construct_path(
     loop {
         path.push(*pos);
         pos = nodes_map.get(pos)?;
-        if *pos == source {
+        if pos == source {
             break;
         }
     }
-    path.push(source);
+    path.push(*source);
     path.reverse();
     Some(path)
 }
@@ -166,7 +173,7 @@ fn construct_path(
 struct PathFinder {
     allow_diagonal: bool,
     heuristic: String,
-    grid: Vec<Vec<i32>>,
+    grid: Array2<u8>,
 }
 
 // https://medium.com/@nicholas.w.swift/easy-a-star-pathfinding-7e6689c7f7b2
@@ -181,11 +188,11 @@ impl PathFinder {
     //        })
     //    }
 
-    fn update_grid(&mut self, grid: Vec<Vec<i32>>) {
+    fn update_grid(&mut self, grid: Array2<u8>) {
         self.grid = grid;
     }
 
-    fn find_path(&self, source: Point2d, target: Point2d) -> Option<Vec<Point2d>> {
+    fn find_path(&self, source: &Point2d, target: &Point2d) -> Option<Vec<Point2d>> {
         let mut nodes_map = HashMap::new();
         let mut closed_list = HashSet::new();
 
@@ -194,8 +201,8 @@ impl PathFinder {
         heap.push(Node {
             cost_to_source: 0.0,
             total_estimated_cost: 0.0,
-            position: source,
-            came_from: source,
+            position: *source,
+            came_from: *source,
         });
 
         let neighbors;
@@ -222,7 +229,7 @@ impl PathFinder {
             }
         }
 
-        let heuristic: fn(Point2d, Point2d) -> f32;
+        let heuristic: fn(&Point2d, &Point2d) -> f32;
         match self.heuristic.as_ref() {
             "manhattan" => heuristic = manhattan_heuristic,
             "octal" => heuristic = octal_heuristic,
@@ -247,14 +254,14 @@ impl PathFinder {
 
             nodes_map.insert(position, came_from);
 
-            if position == target {
+            if position == *target {
                 // Construct path
                 //                println!(
                 //                    "Total checked nodes ({:?}): {:?}",
                 //                    self.heuristic,
                 //                    nodes_map.len()
                 //                );
-                return construct_path(source, target, &nodes_map);
+                return construct_path(&source, &target, &nodes_map);
             }
 
             closed_list.insert(position);
@@ -265,7 +272,7 @@ impl PathFinder {
                 //  if grid point has value == 0 (or -1?): is wall
 
                 let new_cost_to_source = cost_to_source + *real_cost;
-                let estimate_cost = heuristic(new_node, target);
+                let estimate_cost = heuristic(&new_node, target);
                 let total_estimated_cost = new_cost_to_source + estimate_cost;
 
                 // Should perhaps check if position is already in open list, but doesnt matter
@@ -284,17 +291,65 @@ impl PathFinder {
 static SOURCE: Point2d = Point2d { x: 5, y: 5 };
 static TARGET: Point2d = Point2d { x: 50, y: 90 };
 
+pub fn grid_setup(size: usize) -> Array2<u8> {
+    // https://stackoverflow.com/a/59043086/10882657
+    let mut ndarray = Array2::<u8>::ones((size, size));
+    // Set boundaries
+    for y in 0..size {
+        ndarray[[y, 0]] = 0;
+        ndarray[[y, size - 1]] = 0;
+    }
+    for x in 0..size {
+        ndarray[[0, x]] = 0;
+        ndarray[[size - 1, x]] = 0;
+    }
+    ndarray
+}
+
+pub fn read_grid_from_file(path: String) -> Result<(Array2<u8>, u32, u32), std::io::Error> {
+    let mut file = File::open(path)?;
+    //    let mut data = Vec::new();
+    let mut data = String::new();
+
+    file.read_to_string(&mut data)?;
+    let mut height = 0;
+    let mut width = 0;
+    // Create one dimensional vec
+    let mut my_vec = Vec::new();
+    for line in data.lines() {
+        width = line.len();
+        height += 1;
+        for char in line.chars() {
+            my_vec.push(char as u8 - 48);
+        }
+    }
+
+    let array = Array::from(my_vec).into_shape((height, width)).unwrap();
+    Ok((array, height as u32, width as u32))
+}
+
 #[cfg(test)] // Only compiles when running tests
 mod tests {
     use super::*;
     #[allow(unused_imports)]
     use test::Bencher;
 
+    fn astar_test(grid: Array2<u8>, source: Point2d, target: Point2d) -> Option<Vec<Point2d>> {
+        //        let came_from_grid = Array::zeros(grid.raw_dim());
+        let mut pf = PathFinder {
+            allow_diagonal: true,
+            heuristic: String::from("manhattan"),
+            grid: grid,
+        };
+        let path = pf.find_path(&source, &target);
+        return path;
+    }
+
     fn manhattan_test() {
         let pf = PathFinder {
             allow_diagonal: true,
             heuristic: String::from("manhattan"),
-            grid: vec![vec![]],
+            grid: grid_setup(100),
         };
         // TODO use array2d https://docs.rs/array2d/0.2.1/array2d/
         // https://www.programming-idioms.org/idiom/26/create-a-2-dimensional-array/448/rust
@@ -307,7 +362,7 @@ mod tests {
         //            vec![1, 1, 1, 1, 1],
         //        ];
         //        pf.update_grid(grid.clone());
-        let _path = pf.find_path(SOURCE, TARGET);
+        let _path = pf.find_path(&SOURCE, &TARGET);
         //        println!("RESULT {:?}", path);
     }
 
@@ -315,9 +370,9 @@ mod tests {
         let pf = PathFinder {
             allow_diagonal: true,
             heuristic: String::from("octal"),
-            grid: vec![vec![]],
+            grid: grid_setup(100),
         };
-        let _path = pf.find_path(SOURCE, TARGET);
+        let _path = pf.find_path(&SOURCE, &TARGET);
         //        println!("RESULT {:?}", path);
     }
 
@@ -325,9 +380,9 @@ mod tests {
         let pf = PathFinder {
             allow_diagonal: true,
             heuristic: String::from("euclidean"),
-            grid: vec![vec![]],
+            grid: grid_setup(100),
         };
-        let _path = pf.find_path(SOURCE, TARGET);
+        let _path = pf.find_path(&SOURCE, &TARGET);
         //        println!("RESULT {:?}", path);
     }
 
@@ -335,9 +390,9 @@ mod tests {
         let pf = PathFinder {
             allow_diagonal: true,
             heuristic: String::from("none"),
-            grid: vec![vec![]],
+            grid: grid_setup(100),
         };
-        let _path = pf.find_path(SOURCE, TARGET);
+        let _path = pf.find_path(&SOURCE, &TARGET);
         //        println!("RESULT {:?}", path);
     }
 
@@ -367,6 +422,15 @@ mod tests {
     //        let path = pf.find_path(source, target);
     ////        println!("RESULT mine {:?}", path);
     //    }
+
+    #[bench]
+    fn bench_astar_test_from_file(b: &mut Bencher) {
+        let result = read_grid_from_file(String::from("src/AutomatonLE.txt"));
+        let (array, height, width) = result.unwrap();
+        let source = Point2d { x: 32, y: 51 };
+        let target = Point2d { x: 150, y: 129 };
+        b.iter(|| astar_test(array.clone(), source, target));
+    }
 
     #[bench]
     fn bench_manhattan_test(b: &mut Bencher) {
