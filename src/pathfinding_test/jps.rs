@@ -8,9 +8,10 @@ use std::f32::consts::SQRT_2;
 use std::f32::EPSILON;
 use std::ops::Sub;
 
+use ndarray::Array;
 use ndarray::Array1;
 use ndarray::Array2;
-use ndarray::ArrayBase;
+//use ndarray::ArrayBase;
 
 #[allow(dead_code)]
 pub fn absdiff<T>(x: T, y: T) -> T
@@ -57,6 +58,51 @@ struct Direction {
 }
 
 impl Direction {
+    fn to_value(self) -> u8 {
+        match (self.x, self.y) {
+            (1, 0) => 2,
+            (0, 1) => 4,
+            (-1, 0) => 6,
+            (0, -1) => 8,
+            // Diagonal
+            (1, 1) => 3,
+            (-1, 1) => 5,
+            (-1, -1) => 7,
+            (1, -1) => 9,
+            _ => panic!("This shouldnt happen"),
+        }
+    }
+
+    fn from_value(value: u8) -> Self {
+        match value {
+            2 => Direction { x: 1, y: 0 },
+            4 => Direction { x: 0, y: 1 },
+            6 => Direction { x: -1, y: 0 },
+            8 => Direction { x: 0, y: -1 },
+            // Diagonal
+            3 => Direction { x: 1, y: 1 },
+            5 => Direction { x: -1, y: 1 },
+            7 => Direction { x: -1, y: -1 },
+            9 => Direction { x: 1, y: -1 },
+            _ => panic!("This shouldnt happen"),
+        }
+    }
+
+    fn from_value_reverse(value: u8) -> Self {
+        match value {
+            6 => Direction { x: 1, y: 0 },
+            8 => Direction { x: 0, y: 1 },
+            2 => Direction { x: -1, y: 0 },
+            4 => Direction { x: 0, y: -1 },
+            // Diagonal
+            7 => Direction { x: 1, y: 1 },
+            9 => Direction { x: -1, y: 1 },
+            3 => Direction { x: -1, y: -1 },
+            5 => Direction { x: 1, y: -1 },
+            _ => panic!("This shouldnt happen"),
+        }
+    }
+
     fn is_diagonal(self) -> bool {
         match self {
             // Non diagonal movement
@@ -227,6 +273,7 @@ struct PathFinder {
     heuristic: String,
     jump_points: BinaryHeap<JumpPoint>,
     // Contains points which were already visited
+    came_from_grid: Array2<u8>,
     came_from: HashMap<Point2d, Point2d>,
     checked: HashSet<Point2d>,
     duplicate_checks: u64,
@@ -240,8 +287,6 @@ impl PathFinder {
         direction: Direction,
         target: &Point2d,
         cost_to_start: f32,
-        //        left_is_blocked: bool,
-        //        right_is_blocked: bool,
         heuristic: fn(Point2d, Point2d) -> f32,
     ) -> bool {
         let mut traversed_count: u32 = 0;
@@ -277,12 +322,6 @@ impl PathFinder {
         let mut current_point = start;
         let (mut left_blocked, mut right_blocked) = (false, false);
         loop {
-            // Only executed for diagonal movement
-            //            if traversed_count > 0 && self.checked.contains(&current_point) {
-            //                self.duplicate_checks += 1;
-            //            }
-            //            self.checked.insert(current_point);
-
             for (index, (check_dir, traversal_dir)) in add_nodes.iter().enumerate() {
                 let temp_point = self.new_point_in_grid(&current_point, *check_dir);
                 if traversed_count > 0
@@ -294,17 +333,24 @@ impl PathFinder {
                     } else {
                         cost_to_start + traversed_count as f32
                     };
-                    let new_total_cost_estimate =
-                        new_cost_to_start + heuristic(current_point, *target);
 
                     // If this is diagonal traversal, instantly traverse the non-diagonal directions without adding them to min-heap
-                    if index > 2 {
-                        let added_forced_neighbor_from_non_diagonal_traversal = self.traverse(current_point, *traversal_dir, target, new_cost_to_start, heuristic);
+                    if index > 1 {
+                        //                        println!("Diagonal to non-diag traversal in point {:?} in dir {:?}", current_point, traversal_dir);
+                        let added_forced_neighbor_from_non_diagonal_traversal = self.traverse(
+                            current_point,
+                            *traversal_dir,
+                            target,
+                            new_cost_to_start,
+                            heuristic,
+                        );
                         if added_forced_neighbor_from_non_diagonal_traversal {
-                            added_forced_neighbor = added_forced_neighbor_from_non_diagonal_traversal;
-                            self.came_from.entry(current_point).or_insert(start);
+                            added_forced_neighbor =
+                                added_forced_neighbor_from_non_diagonal_traversal;
                         }
                     } else {
+                        let new_total_cost_estimate =
+                            new_cost_to_start + heuristic(current_point, *target);
                         // Add forced neighbor to min-heap
                         self.jump_points.push(JumpPoint {
                             start: current_point,
@@ -312,7 +358,6 @@ impl PathFinder {
                             cost_to_start: new_cost_to_start,
                             total_cost_estimate: new_cost_to_start + new_total_cost_estimate,
                         });
-                        self.came_from.entry(current_point).or_insert(start);
                         added_forced_neighbor = true;
                     }
                     if index == 0 {
@@ -328,16 +373,25 @@ impl PathFinder {
             }
 
             if let Some(new_point) = self.new_point_in_grid(&current_point, direction) {
+                // If we were already in this point, don't traverse again, perhaps only need to do this check when travelling diagonally?
                 // Next traversal point is pathable
                 current_point = new_point;
-                if current_point == *target {
-                    //                    println!("Found goal: {:?}", current_point);
-                    self.came_from.insert(*target, start);
+                //                if is_diagonal{
+                //                    println!(
+                //                        "Openlist: {:?} Traversing {:?} in {:?}",
+                //                        self.jump_points.len(),
+                //                        current_point,
+                //                        direction,
+                ////                        self.came_from_grid[(current_point.y, current_point.x)]
+                //                    );
+                //                }
+                if self.add_came_from(&current_point, direction) {
+                    //                    println!("Breaking, found duplicate");
+                    //                    self.duplicate_checks += 1;
                     break;
                 }
-                // If we were already in this point, don't traverse again
-                //                                                if is_diagonal && self.came_from.contains_key(&current_point) {
-                if self.came_from.contains_key(&current_point) {
+                if current_point == *target {
+                    //                    println!("Found goal: {:?}", current_point);
                     break;
                 }
                 traversed_count += 1;
@@ -347,6 +401,15 @@ impl PathFinder {
             }
         }
         return added_forced_neighbor;
+    }
+
+    fn add_came_from(&mut self, p: &Point2d, d: Direction) -> bool {
+        // Returns 'already_visited' boolean
+        if self.came_from_grid[(p.y, p.x)] == 0 {
+            self.came_from_grid[(p.y, p.x)] = d.to_value();
+            return false;
+        }
+        return true;
     }
 
     fn is_in_grid(&self, point: Point2d) -> bool {
@@ -385,36 +448,32 @@ impl PathFinder {
         construct_full_path: bool,
     ) -> Option<Vec<Point2d>> {
         let mut path = vec![];
-        let mut pos = self.came_from.get(&target)?;
-
+        let mut pos = target;
+        let mut dir: u8;
+        //        let mut dir = self.came_from_grid[(target.y, target.x)];
+        //        let mut pos = target.add_direction(Direction::from_value_reverse(dir));
         println!("Duplciate checks: {:?}", self.duplicate_checks);
 
         if construct_full_path {
-            let mut old_pos = target;
+            //            let mut old_pos = target;
             path.push(target);
-            loop {
-                let d = self.get_direction(old_pos, *pos);
-                while *pos != old_pos {
-                    old_pos = old_pos.add_direction(d);
-                    path.push(old_pos);
-                    //                    println!("{:?}", old_pos);
-                }
-                if old_pos == source {
-                    break;
-                }
-                pos = self.came_from.get(pos)?;
+            while pos != source {
+                dir = self.came_from_grid[(pos.y, pos.x)];
+                pos = pos.add_direction(Direction::from_value_reverse(dir));
+                path.push(pos);
+                //                    println!("{:?}", old_pos);
             }
         } else {
-            path.push(target);
-            loop {
-                path.push(*pos);
-                //                println!("{:?}", pos);
-                pos = self.came_from.get(pos)?;
-                if *pos == source {
-                    break;
-                }
-            }
-            path.push(source);
+            //            path.push(target);
+            //            loop {
+            //                path.push(*pos);
+            //                //                println!("{:?}", pos);
+            ////                pos = self.came_from.get(pos)?;
+            ////                if *pos == source {
+            ////                    break;
+            ////                }
+            //            }
+            //            path.push(source);
         }
         path.reverse();
         Some(path)
@@ -465,20 +524,21 @@ impl PathFinder {
         .iter()
         .enumerate()
         {
-            let cost = if index > 3 { SQRT_2 } else { 1.0 };
+            let cost_to_start = if index > 3 { SQRT_2 } else { 1.0 };
             let new_node = source.add_tuple(*n);
             let estimate = heuristic(new_node, *target);
             let dir = Direction { x: n.0, y: n.1 };
             let left_blocked = self.new_point_in_grid(source, dir.left()).is_none();
             let right_blocked = self.new_point_in_grid(source, dir.right()).is_none();
             self.jump_points.push(JumpPoint {
-                start: *source,
+                start: new_node,
                 direction: dir,
-                cost_to_start: 0.0,
-                total_cost_estimate: cost + estimate,
+                cost_to_start: cost_to_start,
+                total_cost_estimate: cost_to_start + estimate,
                 //                left_is_blocked: left_blocked,
                 //                right_is_blocked: right_blocked,
             });
+            self.add_came_from(&new_node, dir);
             //            self.came_from.insert(new_node, *source);
         }
 
@@ -505,8 +565,8 @@ impl PathFinder {
                 heuristic,
             );
 
-            if self.came_from.contains_key(target) {
-                return self.construct_path(*source, *target, false);
+            if self.came_from_grid[(target.y, target.x)] != 0 {
+                return self.construct_path(*source, *target, true);
             }
         }
 
@@ -520,18 +580,16 @@ static TARGET: Point2d = Point2d { x: 10, y: 12 };
 //pub fn jps_test(grid: [[u8; 100]; 100]) {
 //pub fn jps_test(grid: Vec<Vec<u8>>) {
 pub fn jps_test(grid: Array2<u8>, source: Point2d, target: Point2d) -> Option<Vec<Point2d>> {
+    let came_from_grid = Array::zeros(grid.raw_dim());
     let mut pf = PathFinder {
         grid,
         heuristic: String::from("octal"),
         jump_points: BinaryHeap::new(),
+        came_from_grid: came_from_grid,
         came_from: HashMap::new(),
         checked: HashSet::new(),
         duplicate_checks: 0,
     };
-    //    let mut pf = PathFinder::default();
-    //    pf.heuristic = String::from("euclidean");
-    //    pf.grid = grid.clone();
-
     let path = pf.find_path(&source, &target);
     return path;
 }
@@ -573,7 +631,7 @@ pub fn read_grid_from_file(path: String) -> Result<(Array2<u8>, u32, u32), std::
         }
     }
 
-    let array = ArrayBase::from(my_vec).into_shape((height, width)).unwrap();
+    let array = Array::from(my_vec).into_shape((height, width)).unwrap();
     Ok((array, height as u32, width as u32))
 }
 
