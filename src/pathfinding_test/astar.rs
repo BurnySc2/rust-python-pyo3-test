@@ -174,6 +174,7 @@ struct PathFinder {
     allow_diagonal: bool,
     heuristic: String,
     grid: Array2<u8>,
+    came_from_grid: Array2<u8>,
 }
 
 // https://medium.com/@nicholas.w.swift/easy-a-star-pathfinding-7e6689c7f7b2
@@ -334,67 +335,93 @@ mod tests {
     #[allow(unused_imports)]
     use test::Bencher;
 
-    fn astar_test(grid: Array2<u8>, source: Point2d, target: Point2d) -> Option<Vec<Point2d>> {
-        //        let came_from_grid = Array::zeros(grid.raw_dim());
-        let mut pf = PathFinder {
+    fn astar_pf(grid: Array2<u8>) -> PathFinder {
+        let came_from_grid = Array::zeros(grid.raw_dim());
+        PathFinder {
             allow_diagonal: true,
             heuristic: String::from("manhattan"),
             grid: grid,
-        };
+            came_from_grid: came_from_grid,
+        }
+    }
+
+    fn astar_test(pf: &mut PathFinder, source: Point2d, target: Point2d) -> Option<Vec<Point2d>> {
         let path = pf.find_path(&source, &target);
         return path;
     }
 
-    fn manhattan_test() {
-        let pf = PathFinder {
-            allow_diagonal: true,
-            heuristic: String::from("manhattan"),
-            grid: grid_setup(100),
-        };
-        // TODO use array2d https://docs.rs/array2d/0.2.1/array2d/
-        // https://www.programming-idioms.org/idiom/26/create-a-2-dimensional-array/448/rust
-        // https://stackoverflow.com/a/27984550/10882657
-        //        let grid: Vec<Vec<i32>> = vec![
-        //            vec![1, 1, 1, 1, 1],
-        //            vec![1, 1, 1, 1, 1],
-        //            vec![1, 1, 1, 1, 1],
-        //            vec![1, 1, 1, 1, 1],
-        //            vec![1, 1, 1, 1, 1],
-        //        ];
-        //        pf.update_grid(grid.clone());
-        let _path = pf.find_path(&SOURCE, &TARGET);
-        //        println!("RESULT {:?}", path);
+    #[bench]
+    fn bench_astar_test_from_file(b: &mut Bencher) {
+        let result = read_grid_from_file(String::from("AutomatonLE.txt"));
+        let (array, height, width) = result.unwrap();
+        let source = Point2d { x: 32, y: 51 };
+        let target = Point2d { x: 150, y: 129 };
+        let mut pf = astar_pf(array);
+        b.iter(|| astar_test(&mut pf, source, target));
     }
 
-    fn octal_test() {
-        let pf = PathFinder {
-            allow_diagonal: true,
-            heuristic: String::from("octal"),
-            grid: grid_setup(100),
-        };
-        let _path = pf.find_path(&SOURCE, &TARGET);
-        //        println!("RESULT {:?}", path);
-    }
+//    fn manhattan_test() {
+//        let grid = grid_setup(100);
+//        let came_from_grid = Array::zeros(grid.raw_dim());
+//        let pf = PathFinder {
+//            allow_diagonal: true,
+//            heuristic: String::from("manhattan"),
+//            grid: grid,
+//            came_from_grid: came_from_grid,
+//        };
+//        // TODO use array2d https://docs.rs/array2d/0.2.1/array2d/
+//        // https://www.programming-idioms.org/idiom/26/create-a-2-dimensional-array/448/rust
+//        // https://stackoverflow.com/a/27984550/10882657
+//        //        let grid: Vec<Vec<i32>> = vec![
+//        //            vec![1, 1, 1, 1, 1],
+//        //            vec![1, 1, 1, 1, 1],
+//        //            vec![1, 1, 1, 1, 1],
+//        //            vec![1, 1, 1, 1, 1],
+//        //            vec![1, 1, 1, 1, 1],
+//        //        ];
+//        //        pf.update_grid(grid.clone());
+//        let _path = pf.find_path(&SOURCE, &TARGET);
+//        //        println!("RESULT {:?}", path);
+//    }
 
-    fn euclidean_test() {
-        let pf = PathFinder {
-            allow_diagonal: true,
-            heuristic: String::from("euclidean"),
-            grid: grid_setup(100),
-        };
-        let _path = pf.find_path(&SOURCE, &TARGET);
-        //        println!("RESULT {:?}", path);
-    }
-
-    fn no_heuristic_test() {
-        let pf = PathFinder {
-            allow_diagonal: true,
-            heuristic: String::from("none"),
-            grid: grid_setup(100),
-        };
-        let _path = pf.find_path(&SOURCE, &TARGET);
-        //        println!("RESULT {:?}", path);
-    }
+//    fn octal_test() {
+//        let grid = grid_setup(100);
+//        let came_from_grid = Array::zeros(grid.raw_dim());
+//        let pf = PathFinder {
+//            allow_diagonal: true,
+//            heuristic: String::from("octal"),
+//            grid: grid,
+//            came_from_grid: came_from_grid,
+//        };
+//        let _path = pf.find_path(&SOURCE, &TARGET);
+//        //        println!("RESULT {:?}", path);
+//    }
+//
+//    fn euclidean_test() {
+//        let grid = grid_setup(100);
+//        let came_from_grid = Array::zeros(grid.raw_dim());
+//        let pf = PathFinder {
+//            allow_diagonal: true,
+//            heuristic: String::from("euclidean"),
+//            grid: grid,
+//            came_from_grid: came_from_grid,
+//        };
+//        let _path = pf.find_path(&SOURCE, &TARGET);
+//        //        println!("RESULT {:?}", path);
+//    }
+//
+//    fn no_heuristic_test() {
+//        let grid = grid_setup(100);
+//        let came_from_grid = Array::zeros(grid.raw_dim());
+//        let pf = PathFinder {
+//            allow_diagonal: true,
+//            heuristic: String::from("none"),
+//            grid: grid,
+//            came_from_grid: came_from_grid,
+//        };
+//        let _path = pf.find_path(&SOURCE, &TARGET);
+//        //        println!("RESULT {:?}", path);
+//    }
 
     //    use pathfinding::prelude::*;
     //    fn crate_pathfinding_astar_test() {
@@ -423,34 +450,26 @@ mod tests {
     ////        println!("RESULT mine {:?}", path);
     //    }
 
-    #[bench]
-    fn bench_astar_test_from_file(b: &mut Bencher) {
-        let result = read_grid_from_file(String::from("AutomatonLE.txt"));
-        let (array, height, width) = result.unwrap();
-        let source = Point2d { x: 32, y: 51 };
-        let target = Point2d { x: 150, y: 129 };
-        b.iter(|| astar_test(array.clone(), source, target));
-    }
 
-    #[bench]
-    fn bench_manhattan_test(b: &mut Bencher) {
-        b.iter(manhattan_test);
-    }
-
-    #[bench]
-    fn bench_octal_test(b: &mut Bencher) {
-        b.iter(octal_test);
-    }
-
-    #[bench]
-    fn bench_euclidean_test(b: &mut Bencher) {
-        b.iter(euclidean_test);
-    }
-
-    #[bench]
-    fn bench_no_heuristic_test(b: &mut Bencher) {
-        b.iter(no_heuristic_test);
-    }
+//    #[bench]
+//    fn bench_manhattan_test(b: &mut Bencher) {
+//        b.iter(manhattan_test);
+//    }
+//
+//    #[bench]
+//    fn bench_octal_test(b: &mut Bencher) {
+//        b.iter(octal_test);
+//    }
+//
+//    #[bench]
+//    fn bench_euclidean_test(b: &mut Bencher) {
+//        b.iter(euclidean_test);
+//    }
+//
+//    #[bench]
+//    fn bench_no_heuristic_test(b: &mut Bencher) {
+//        b.iter(no_heuristic_test);
+//    }
 
     //    #[bench]
     //    fn bench_crate_pathfinding_astar_test(b: &mut Bencher) {

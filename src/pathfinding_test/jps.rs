@@ -51,7 +51,7 @@ fn no_heuristic(_source: Point2d, _target: Point2d) -> f32 {
     0.0
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 struct Direction {
     x: i32,
     y: i32,
@@ -266,7 +266,8 @@ impl Ord for JumpPoint {
 
 impl Eq for JumpPoint {}
 
-struct PathFinder {
+pub struct PathFinder {
+//    grid: [[u8; 300];300],
     grid: Array2<u8>,
     heuristic: String,
     jump_points: BinaryHeap<JumpPoint>,
@@ -314,7 +315,11 @@ impl PathFinder {
             // Goal found, construct path
             if current_point == *target {
                 self.add_came_from(&current_point, &start);
+                //                self.add_came_from_grid(&current_point, direction);
                 println!("Found goal: {:?} {:?}", current_point, direction);
+                println!("Size of open list: {:?}", self.jump_points.len());
+                println!("Size of came from: {:?}", self.came_from.len());
+                println!("Duplciate checks: {:?}", self.duplicate_checks);
                 return true;
             }
             // We loop over each direction that isnt the traversal direction
@@ -336,6 +341,7 @@ impl PathFinder {
 
                     if index < 2 {
                         if self.add_came_from(&current_point, &start) {
+                            //                        if self.add_came_from_grid(&current_point, direction) {
                             // We were already at this point because a new jump point was created here - this means we either are going in a circle or we come from a path that is longer?
                             break;
                         }
@@ -363,6 +369,8 @@ impl PathFinder {
                         if added_jump_point_from_non_diagonal_traversal {
                             self.add_came_from(&next_point, &current_point);
                             self.add_came_from(&current_point, &start);
+                            //                            self.add_came_from_grid(&next_point, *traversal_dir);
+                            //                            self.add_came_from_grid(&current_point, direction);
                         }
                     }
                     // Mark the side no longer as blocked
@@ -396,6 +404,15 @@ impl PathFinder {
         // Returns 'already_visited' boolean
         if !self.came_from.contains_key(p) {
             self.came_from.insert(*p, *p2);
+            return false;
+        }
+        return true;
+    }
+
+    fn add_came_from_grid(&mut self, p: &Point2d, d: Direction) -> bool {
+        // Returns 'already_visited' boolean
+        if self.came_from_grid[[p.y, p.x]] == 0 {
+            self.came_from_grid[[p.y, p.x]] = d.to_value();
             return false;
         }
         return true;
@@ -438,12 +455,37 @@ impl PathFinder {
     ) -> Option<Vec<Point2d>> {
         let mut path = vec![];
         let mut pos = &target;
-        println!("Duplciate checks: {:?}", self.duplicate_checks);
 
         path.push(target);
         while *pos != source {
             pos = self.came_from.get(&pos).unwrap();
             path.push(*pos);
+        }
+        // TODO use variable construct_full_path
+
+        path.reverse();
+        Some(path)
+    }
+    fn construct_path_grid(
+        &self,
+        source: Point2d,
+        target: Point2d,
+        construct_full_path: bool,
+    ) -> Option<Vec<Point2d>> {
+        let mut path = vec![];
+        let mut pos = target;
+        let mut dir_value: u8;
+        let mut dir: Direction = Direction::from_value_reverse(self.came_from_grid[[pos.y, pos.x]]);
+
+        path.push(target);
+        while pos != source {
+            dir_value = self.came_from_grid[[pos.y, pos.x]];
+            if dir_value != 0 {
+                dir = Direction::from_value_reverse(dir_value);
+            }
+            println!("{:?}", pos);
+            pos = pos.add_direction(dir);
+            path.push(pos);
         }
         // TODO use variable construct_full_path
 
@@ -503,6 +545,7 @@ impl PathFinder {
                 total_cost_estimate: cost_to_start + estimate,
             });
             self.add_came_from(&new_node, &source);
+            //            self.add_came_from_grid(&new_node, dir);
         }
 
         while let Some(JumpPoint {
@@ -514,10 +557,12 @@ impl PathFinder {
         {
             self.traverse(start, direction, &target, cost_to_start, heuristic);
 
-            //            if self.came_from_grid[(target.y, target.x)] != 0 {
             if self.came_from.contains_key(target) {
                 return self.construct_path(*source, *target, false);
             }
+            //            if self.came_from_grid[[target.y, target.x]] != 0 {
+            //                return self.construct_path_grid(*source, *target, false);
+            //            }
         }
 
         None
@@ -529,16 +574,26 @@ static TARGET: Point2d = Point2d { x: 10, y: 12 };
 
 //pub fn jps_test(grid: [[u8; 100]; 100]) {
 //pub fn jps_test(grid: Vec<Vec<u8>>) {
-pub fn jps_test(grid: Array2<u8>, source: Point2d, target: Point2d) -> Option<Vec<Point2d>> {
+pub fn jps_pf(grid: Array2<u8>) -> PathFinder {
     let came_from_grid = Array::zeros(grid.raw_dim());
-    let mut pf = PathFinder {
-        grid,
+    let mut array = [[0u8;300];300];
+    let dim = grid.raw_dim();
+    for y in 0..dim[0] {
+        for x in 0..dim[1] {
+            array[y][x] = grid[[y, x]];
+        }
+    }
+    PathFinder {
+        grid: grid,
         heuristic: String::from("octal"),
         jump_points: BinaryHeap::new(),
         came_from: HashMap::new(),
         came_from_grid: came_from_grid,
         duplicate_checks: 0,
-    };
+    }}
+
+
+pub fn jps_test(pf: &mut PathFinder, source: Point2d, target: Point2d) -> Option<Vec<Point2d>> {
     let path = pf.find_path(&source, &target);
     return path;
 }
@@ -635,36 +690,81 @@ mod tests {
     #[allow(unused_imports)]
     use test::Bencher;
 
+    #[test]
+    fn test_direction_to_value() {
+        // Non diagonal
+        assert_eq!(Direction { x: 1, y: 0 }.to_value(), 2);
+        assert_eq!(Direction { x: 0, y: 1 }.to_value(), 4);
+        assert_eq!(Direction { x: -1, y: 0 }.to_value(), 6);
+        assert_eq!(Direction { x: 0, y: -1 }.to_value(), 8);
+        // Diagonal
+        assert_eq!(Direction { x: 1, y: 1 }.to_value(), 3);
+        assert_eq!(Direction { x: -1, y: 1 }.to_value(), 5);
+        assert_eq!(Direction { x: -1, y: -1 }.to_value(), 7);
+        assert_eq!(Direction { x: 1, y: -1 }.to_value(), 9);
+    }
+
+    #[test]
+    fn test_value_to_direction() {
+        // Non diagonal
+        assert_eq!(Direction::from_value(2), Direction { x: 1, y: 0 });
+        assert_eq!(Direction::from_value(4), Direction { x: 0, y: 1 });
+        assert_eq!(Direction::from_value(6), Direction { x: -1, y: 0 });
+        assert_eq!(Direction::from_value(8), Direction { x: 0, y: -1 });
+        // Diagonal
+        assert_eq!(Direction::from_value(3), Direction { x: 1, y: 1 });
+        assert_eq!(Direction::from_value(5), Direction { x: -1, y: 1 });
+        assert_eq!(Direction::from_value(7), Direction { x: -1, y: -1 });
+        assert_eq!(Direction::from_value(9), Direction { x: 1, y: -1 });
+    }
+
+    #[test]
+    fn test_value_to_direction_rev() {
+        // Non diagonal
+        assert_eq!(Direction::from_value_reverse(2), Direction { x: -1, y: 0 });
+        assert_eq!(Direction::from_value_reverse(4), Direction { x: 0, y: -1 });
+        assert_eq!(Direction::from_value_reverse(6), Direction { x: 1, y: 0 });
+        assert_eq!(Direction::from_value_reverse(8), Direction { x: 0, y: 1 });
+        // Diagonal
+        assert_eq!(Direction::from_value_reverse(3), Direction { x: -1, y: -1 });
+        assert_eq!(Direction::from_value_reverse(5), Direction { x: 1, y: -1 });
+        assert_eq!(Direction::from_value_reverse(7), Direction { x: 1, y: 1 });
+        assert_eq!(Direction::from_value_reverse(9), Direction { x: -1, y: 1 });
+    }
+
     #[bench]
     fn bench_jps_test_from_file(b: &mut Bencher) {
+        // Setup
         let result = read_grid_from_file(String::from("AutomatonLE.txt"));
         let (array, height, width) = result.unwrap();
         let source = Point2d { x: 32, y: 51 };
         let target = Point2d { x: 150, y: 129 };
-        b.iter(|| jps_test(array.clone(), source, target));
+        let mut pf = jps_pf(array.clone());
+        // Run bench
+        b.iter(|| jps_test(&mut pf, source, target));
     }
 
-    #[bench]
-    fn bench_jps_test(b: &mut Bencher) {
-        let grid = grid_setup(100);
-        b.iter(|| jps_test(grid.clone(), SOURCE, TARGET));
-    }
-
-    #[bench]
-    fn bench_index_vec_vec_u8(b: &mut Bencher) {
-        let grid = vec_2d_setup();
-        b.iter(|| vec_2d_index_test(&grid));
-    }
-
-    #[bench]
-    fn bench_index_array_u8(b: &mut Bencher) {
-        let grid = array_2d_setup();
-        b.iter(|| array_2d_index_test(&grid));
-    }
-
-    #[bench]
-    fn bench_index_ndarray_u8(b: &mut Bencher) {
-        let grid = ndarray_setup();
-        b.iter(|| ndarray_index_test(&grid));
-    }
+//    #[bench]
+//    fn bench_jps_test(b: &mut Bencher) {
+//        let grid = grid_setup(100);
+//        b.iter(|| jps_test(grid.clone(), SOURCE, TARGET));
+//    }
+//
+//    #[bench]
+//    fn bench_index_vec_vec_u8(b: &mut Bencher) {
+//        let grid = vec_2d_setup();
+//        b.iter(|| vec_2d_index_test(&grid));
+//    }
+//
+//    #[bench]
+//    fn bench_index_array_u8(b: &mut Bencher) {
+//        let grid = array_2d_setup();
+//        b.iter(|| array_2d_index_test(&grid));
+//    }
+//
+//    #[bench]
+//    fn bench_index_ndarray_u8(b: &mut Bencher) {
+//        let grid = ndarray_setup();
+//        b.iter(|| ndarray_index_test(&grid));
+//    }
 }
