@@ -13,6 +13,8 @@ use ndarray::Array1;
 use ndarray::Array2;
 //use ndarray::ArrayBase;
 
+use fasthash::sea::Hash64;
+
 #[allow(dead_code)]
 pub fn absdiff<T>(x: T, y: T) -> T
 where
@@ -271,7 +273,7 @@ pub struct PathFinder {
     heuristic: String,
     jump_points: BinaryHeap<JumpPoint>,
     // Contains points which were already visited
-    came_from: HashMap<Point2d, Point2d>,
+    came_from: HashMap<Point2d, Point2d, Hash64>,
 }
 
 #[allow(dead_code)]
@@ -311,9 +313,9 @@ impl PathFinder {
             // Goal found, construct path
             if current_point == *target {
                 self.add_came_from(&current_point, &start);
-//                println!("Found goal: {:?} {:?}", current_point, direction);
-//                println!("Size of open list: {:?}", self.jump_points.len());
-//                println!("Size of came from: {:?}", self.came_from.len());
+                println!("Found goal: {:?} {:?}", current_point, direction);
+                println!("Size of open list: {:?}", self.jump_points.len());
+                println!("Size of came from: {:?}", self.came_from.len());
                 return ();
             }
             // We loop over each direction that isnt the traversal direction
@@ -519,7 +521,8 @@ pub fn jps_pf(grid: Array2<u8>) -> PathFinder {
         grid: grid,
         heuristic: String::from("octal"),
         jump_points: BinaryHeap::new(),
-        came_from: HashMap::new(),
+        //        came_from: HashMap::with_capacity_and_hasher(10000, Hash64),
+        came_from: HashMap::with_hasher(Hash64),
     }
 }
 
@@ -625,8 +628,8 @@ mod tests {
         let target = Point2d { x: 150, y: 129 };
 
         // Main ramp to main ramp
-//                let source = Point2d { x: 32, y: 51 };
-//                let target = Point2d { x: 150, y: 129 };
+        //                let source = Point2d { x: 32, y: 51 };
+        //                let target = Point2d { x: 150, y: 129 };
         let mut pf = jps_pf(array.clone());
         // Run bench
         b.iter(|| jps_test(&mut pf, source, target));
