@@ -238,8 +238,6 @@ struct JumpPoint {
     direction: Direction,
     cost_to_start: f32,
     total_cost_estimate: f32,
-    //    left_is_blocked: bool,
-    //    right_is_blocked: bool,
 }
 
 impl PartialEq for JumpPoint {
@@ -273,6 +271,7 @@ struct PathFinder {
     heuristic: String,
     jump_points: BinaryHeap<JumpPoint>,
     // Contains points which were already visited
+    came_from: HashMap<Point2d, Point2d>,
     came_from_grid: Array2<u8>,
     duplicate_checks: u64,
 }
@@ -286,18 +285,20 @@ impl PathFinder {
         target: &Point2d,
         cost_to_start: f32,
         heuristic: fn(Point2d, Point2d) -> f32,
-    ) {
+    ) -> bool {
+        // How far we moved from the start of the function call
         let mut traversed_count: u32 = 0;
         let add_nodes: Vec<(Direction, Direction)>;
         if direction.is_diagonal() {
-            // The first two entries will be checked for left_blocked and right_blocked (forced neighbors?)
-            // If the vec has more than 2 elements, then the remaining will not be checked (this is the case in diagonal movement)
+            // The first two entries will be checked for left_blocked and right_blocked, if a wall was encountered but that position is now free (forced neighbors?)
+            // If the vec has more than 2 elements, then the remaining will not be checked for walls (this is the case in diagonal movement where it forks off to horizontal+vertical movement)
             // (blocked_direction from current_node, traversal_direction)
+            let (half_left, half_right) = (direction.half_left(), direction.half_right());
             add_nodes = vec![
                 (direction.left135(), direction.left()),
                 (direction.right135(), direction.right()),
-                (direction.half_left(), direction.half_left()),
-                (direction.half_right(), direction.half_right()),
+                (half_left, half_left),
+                (half_right, half_right),
             ];
         } else {
             add_nodes = vec![
@@ -306,96 +307,104 @@ impl PathFinder {
             ];
         }
         let mut current_point = start;
+        // Stores wall status - if a side is no longer blocked: create jump point and fork path
         let (mut left_blocked, mut right_blocked) = (false, false);
+        let mut added_jump_point: bool = false;
         loop {
+            // Goal found, construct path
+            if current_point == *target {
+                self.add_came_from(&current_point, &start);
+                println!("Found goal: {:?} {:?}", current_point, direction);
+                return true;
+            }
+            // We loop over each direction that isnt the traversal direction
+            // For diagonal traversal this is 2 checks (left is wall, right is wall), and 2 forks (horizontal+vertical movement)
+            // For non-diagonal traversal this is only checking if there are walls on the side
             for (index, (check_dir, traversal_dir)) in add_nodes.iter().enumerate() {
-                let temp_point = self.new_point_in_grid(&current_point, *check_dir);
-                if traversed_count > 0
-                    && (index == 0 && left_blocked || index == 1 && right_blocked || index > 1)
-                    && temp_point.is_some()
+                // Check if in that direction is a wall
+                let check_point = self.new_point_in_grid(&current_point, *check_dir);
+                if (index == 0 && left_blocked || index == 1 && right_blocked || index > 1)
+                    && traversed_count > 0
+                    && check_point.is_some()
                 {
+                    // If there is no longer a wall in that direction, add jump point to binary heap
                     let new_cost_to_start = if traversal_dir.is_diagonal() {
                         cost_to_start + SQRT_2 * traversed_count as f32
                     } else {
                         cost_to_start + traversed_count as f32
                     };
 
-                    if index > 1 {
-                        // If this is diagonal traversal, instantly traverse the non-diagonal directions without adding them to min-heap
-                        // println!("Diagonal to non-diag traversal in point {:?} in dir {:?}", current_point, traversal_dir);
-                        self.traverse(
-                            current_point,
-                            *traversal_dir,
-                            target,
-                            new_cost_to_start,
-                            heuristic,
-                        );
-                    } else {
-                        let new_total_cost_estimate =
-                            new_cost_to_start + heuristic(current_point, *target);
+                    if index < 2 {
+                        if self.add_came_from(&current_point, &start) {
+                            // We were already at this point because a new jump point was created here - this means we either are going in a circle or we come from a path that is longer?
+                            break;
+                        }
                         // Add forced neighbor to min-heap
                         self.jump_points.push(JumpPoint {
                             start: current_point,
                             direction: *traversal_dir,
                             cost_to_start: new_cost_to_start,
-                            total_cost_estimate: new_cost_to_start + new_total_cost_estimate,
+                            total_cost_estimate: new_cost_to_start
+                                + heuristic(current_point, *target),
                         });
+                        // If this is non-diagonal traversal, this is used to store a 'came_from' point
+                        added_jump_point = true;
+                    } else {
+                        // If this is diagonal traversal, instantly traverse the non-diagonal directions without adding them to min-heap first
+                        let next_point = current_point.add_direction(*traversal_dir);
+                        let added_jump_point_from_non_diagonal_traversal = self.traverse(
+                            next_point,
+                            *traversal_dir,
+                            target,
+                            new_cost_to_start + 1.0,
+                            heuristic,
+                        );
+                        // The non-diagonal traversal created a jump point and added it to the min-heap, so to backtrack from target/goal, we need to add this position to 'came_from'
+                        if added_jump_point_from_non_diagonal_traversal {
+                            self.add_came_from(&next_point, &current_point);
+                            self.add_came_from(&current_point, &start);
+                        }
                     }
+                    // Mark the side no longer as blocked
                     if index == 0 {
                         left_blocked = false;
                     } else if index == 1 {
                         right_blocked = false;
                     }
-                } else if index == 0 && temp_point.is_none() {
+                } else if index == 0 && check_point.is_none() {
+                    // If this direction (left) has now a wall, mark as blocked
                     left_blocked = true;
-                } else if index == 1 && temp_point.is_none() {
+                } else if index == 1 && check_point.is_none() {
+                    // If this direction (right) has now a wall, mark as blocked
                     right_blocked = true
                 }
             }
 
             if let Some(new_point) = self.new_point_in_grid(&current_point, direction) {
-                // If we were already in this point, don't traverse again, perhaps only need to do this check when travelling diagonally?
                 // Next traversal point is pathable
                 current_point = new_point;
-                //                if is_diagonal{
-                //                    println!(
-                //                        "Openlist: {:?} Traversing {:?} in {:?}",
-                //                        self.jump_points.len(),
-                //                        current_point,
-                //                        direction,
-                ////                        self.came_from_grid[(current_point.y, current_point.x)]
-                //                    );
-                //                }
-                // If we already visited this point, break
-                if self.add_came_from(&current_point, direction) {
-                    self.duplicate_checks += 1;
-                    break;
-                }
-                if current_point == *target {
-                    //                    println!("Found goal: {:?}", current_point);
-                    break;
-                }
                 traversed_count += 1;
             } else {
-                // Next traversal point is a wall
+                // Next traversal point is a wall - this traversal is done
                 break;
             }
         }
+        return added_jump_point;
     }
 
-    fn add_came_from(&mut self, p: &Point2d, d: Direction) -> bool {
+    fn add_came_from(&mut self, p: &Point2d, p2: &Point2d) -> bool {
         // Returns 'already_visited' boolean
-        if self.came_from_grid[(p.y, p.x)] == 0 {
-            self.came_from_grid[(p.y, p.x)] = d.to_value();
+        if !self.came_from.contains_key(p) {
+            self.came_from.insert(*p, *p2);
             return false;
         }
         return true;
     }
 
     fn is_in_grid(&self, point: Point2d) -> bool {
-        //        self.grid[point.y][point.x] == 1
         self.grid[[point.y, point.x]] == 1
     }
+
     fn new_point_in_grid(&self, point: &Point2d, direction: Direction) -> Option<Point2d> {
         // Returns new point if point in that direction is not blocked
         let new_point = point.add_direction(direction);
@@ -428,27 +437,21 @@ impl PathFinder {
         construct_full_path: bool,
     ) -> Option<Vec<Point2d>> {
         let mut path = vec![];
-        let mut pos = target;
-        let mut dir: u8;
+        let mut pos = &target;
         println!("Duplciate checks: {:?}", self.duplicate_checks);
 
-        if construct_full_path {
-            path.push(target);
-            while pos != source {
-                dir = self.came_from_grid[(pos.y, pos.x)];
-                pos = pos.add_direction(Direction::from_value_reverse(dir));
-                path.push(pos);
-            }
-        } else {
-            // TODO only construct some part of the path (jump points)
+        path.push(target);
+        while *pos != source {
+            pos = self.came_from.get(&pos).unwrap();
+            path.push(*pos);
         }
+        // TODO use variable construct_full_path
+
         path.reverse();
         Some(path)
     }
 
     fn find_path(&mut self, source: &Point2d, target: &Point2d) -> Option<Vec<Point2d>> {
-        // Return early when start is in the wall
-        //        if self.grid[source.y][source.x] == 0 {
         if self.grid[[source.y, source.x]] == 0 {
             println!(
                 "Returning early, source position is not in grid: {:?}",
@@ -463,10 +466,6 @@ impl PathFinder {
             );
             return None;
         }
-
-        //        let mut jump_points = BinaryHeap::new();
-        //        let mut visited = HashSet::new();
-        //        visited.insert(source);
 
         let heuristic: fn(Point2d, Point2d) -> f32;
         match self.heuristic.as_ref() {
@@ -503,7 +502,7 @@ impl PathFinder {
                 cost_to_start: cost_to_start,
                 total_cost_estimate: cost_to_start + estimate,
             });
-            self.add_came_from(&new_node, dir);
+            self.add_came_from(&new_node, &source);
         }
 
         while let Some(JumpPoint {
@@ -515,8 +514,9 @@ impl PathFinder {
         {
             self.traverse(start, direction, &target, cost_to_start, heuristic);
 
-            if self.came_from_grid[(target.y, target.x)] != 0 {
-                return self.construct_path(*source, *target, true);
+            //            if self.came_from_grid[(target.y, target.x)] != 0 {
+            if self.came_from.contains_key(target) {
+                return self.construct_path(*source, *target, false);
             }
         }
 
@@ -535,6 +535,7 @@ pub fn jps_test(grid: Array2<u8>, source: Point2d, target: Point2d) -> Option<Ve
         grid,
         heuristic: String::from("octal"),
         jump_points: BinaryHeap::new(),
+        came_from: HashMap::new(),
         came_from_grid: came_from_grid,
         duplicate_checks: 0,
     };

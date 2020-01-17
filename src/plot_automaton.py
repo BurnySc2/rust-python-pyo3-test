@@ -63,7 +63,7 @@ def main():
     # print(map_grid)
 
     path = []
-    with open("path.txt") as f:
+    with open("../path.txt") as f:
         for line in f.readlines():
             x, y = line.split(",")
             path.append((int(x.strip()), int(y.strip())))
