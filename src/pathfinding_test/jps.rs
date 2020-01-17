@@ -360,6 +360,7 @@ impl PathFinder {
                             heuristic,
                         );
                         // The non-diagonal traversal created a jump point and added it to the min-heap, so to backtrack from target/goal, we need to add this position to 'came_from'
+
                         if added_jump_point_from_non_diagonal_traversal {
                             self.add_came_from(&next_point, &current_point);
                             self.add_came_from(&current_point, &start);
@@ -516,11 +517,11 @@ impl PathFinder {
             total_cost_estimate: _,
         }) = self.jump_points.pop()
         {
-            self.traverse(&start, direction, &target, cost_to_start, heuristic);
-
             if self.goal_reached(&target) {
                 return self.construct_path(source, target, false);
             }
+
+            self.traverse(&start, direction, &target, cost_to_start, heuristic);
         }
 
         None
