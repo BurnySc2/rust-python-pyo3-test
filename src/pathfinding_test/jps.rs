@@ -283,7 +283,7 @@ impl PathFinder {
         target: &Point2d,
         cost_to_start: f32,
         heuristic: fn(&Point2d, &Point2d) -> f32,
-    ) -> bool {
+    ) {
         // How far we moved from the start of the function call
         let mut traversed_count: u32 = 0;
         let add_nodes: Vec<(Direction, Direction)>;
@@ -307,15 +307,14 @@ impl PathFinder {
         let mut current_point = *start;
         // Stores wall status - if a side is no longer blocked: create jump point and fork path
         let (mut left_blocked, mut right_blocked) = (false, false);
-        let mut added_jump_point: bool = false;
         loop {
             // Goal found, construct path
             if current_point == *target {
                 self.add_came_from(&current_point, &start);
-                println!("Found goal: {:?} {:?}", current_point, direction);
-                println!("Size of open list: {:?}", self.jump_points.len());
-                println!("Size of came from: {:?}", self.came_from.len());
-                return true;
+//                println!("Found goal: {:?} {:?}", current_point, direction);
+//                println!("Size of open list: {:?}", self.jump_points.len());
+//                println!("Size of came from: {:?}", self.came_from.len());
+                return ();
             }
             // We loop over each direction that isnt the traversal direction
             // For diagonal traversal this is 2 checks (left is wall, right is wall), and 2 forks (horizontal+vertical movement)
@@ -347,24 +346,19 @@ impl PathFinder {
                             total_cost_estimate: new_cost_to_start
                                 + heuristic(&current_point, target),
                         });
-                        // If this is non-diagonal traversal, this is used to store a 'came_from' point
-                        added_jump_point = true;
+                    // If this is non-diagonal traversal, this is used to store a 'came_from' point
                     } else {
                         // If this is diagonal traversal, instantly traverse the non-diagonal directions without adding them to min-heap first
-                        let next_point = current_point.add_direction(*traversal_dir);
-                        let added_jump_point_from_non_diagonal_traversal = self.traverse(
-                            &next_point,
+                        //                        let next_point = current_point.add_direction(*traversal_dir);
+                        self.traverse(
+                            &current_point,
                             *traversal_dir,
                             target,
-                            new_cost_to_start + 1.0,
+                            new_cost_to_start,
                             heuristic,
                         );
                         // The non-diagonal traversal created a jump point and added it to the min-heap, so to backtrack from target/goal, we need to add this position to 'came_from'
-
-                        if added_jump_point_from_non_diagonal_traversal {
-                            self.add_came_from(&next_point, &current_point);
-                            self.add_came_from(&current_point, &start);
-                        }
+                        self.add_came_from(&current_point, &start);
                     }
                     // Mark the side no longer as blocked
                     if index == 0 {
@@ -390,7 +384,6 @@ impl PathFinder {
                 break;
             }
         }
-        return added_jump_point;
     }
 
     fn add_came_from(&mut self, p: &Point2d, p2: &Point2d) -> bool {
@@ -481,33 +474,23 @@ impl PathFinder {
             _ => heuristic = euclidean_heuristic,
         }
 
-        // Add 8 starting nodes around source point
-        for (index, n) in vec![
-            (1, 0),
-            (0, 1),
-            (-1, 0),
-            (0, -1),
-            (1, 1),
-            (-1, 1),
-            (-1, -1),
-            (1, -1),
+        // Add 4 starting nodes (diagonal traversals) around source point
+        for dir in [
+            Direction { x: 1, y: 1 },
+            Direction { x: -1, y: 1 },
+            Direction { x: -1, y: -1 },
+            Direction { x: 1, y: -1 },
         ]
         .iter()
-        .enumerate()
         {
-            let cost_to_start = if index > 3 { SQRT_2 } else { 1.0 };
-            let new_node = source.add_tuple(*n);
-            let estimate = heuristic(&new_node, target);
-            let dir = Direction { x: n.0, y: n.1 };
             let left_blocked = self.new_point_in_grid(source, dir.left()).is_none();
             let right_blocked = self.new_point_in_grid(source, dir.right()).is_none();
             self.jump_points.push(JumpPoint {
-                start: new_node,
-                direction: dir,
-                cost_to_start: cost_to_start,
-                total_cost_estimate: cost_to_start + estimate,
+                start: *source,
+                direction: *dir,
+                cost_to_start: 0.0,
+                total_cost_estimate: 0.0 + heuristic(&source, target),
             });
-            self.add_came_from(&new_node, &source);
         }
 
         while let Some(JumpPoint {
@@ -637,8 +620,13 @@ mod tests {
         // Setup
         let result = read_grid_from_file(String::from("AutomatonLE.txt"));
         let (array, height, width) = result.unwrap();
+        // Spawn to spawn
         let source = Point2d { x: 32, y: 51 };
         let target = Point2d { x: 150, y: 129 };
+
+        // Main ramp to main ramp
+//                let source = Point2d { x: 32, y: 51 };
+//                let target = Point2d { x: 150, y: 129 };
         let mut pf = jps_pf(array.clone());
         // Run bench
         b.iter(|| jps_test(&mut pf, source, target));

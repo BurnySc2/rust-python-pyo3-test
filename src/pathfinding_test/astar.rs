@@ -336,8 +336,12 @@ mod tests {
     fn bench_astar_test_from_file(b: &mut Bencher) {
         let result = read_grid_from_file(String::from("AutomatonLE.txt"));
         let (array, height, width) = result.unwrap();
+        // Spawn to spawn
         let source = Point2d { x: 32, y: 51 };
         let target = Point2d { x: 150, y: 129 };
+        // Main ramp to main ramp
+        //        let source = Point2d { x: 32, y: 51 };
+        //        let target = Point2d { x: 150, y: 129 };
         let mut pf = astar_pf(array);
         b.iter(|| astar_test(&mut pf, source, target));
     }

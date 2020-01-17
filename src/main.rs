@@ -26,11 +26,13 @@ fn main() {
     //        let source = pathfinding_test::jps::Point2d { x: 70, y: 100 };
     //        let target = pathfinding_test::jps::Point2d { x: 100, y: 114 };
 
+    // Spawn to spawn
     let source = pathfinding_test::jps::Point2d { x: 29, y: 65 };
     let target = pathfinding_test::jps::Point2d { x: 154, y: 114 };
 
-    //                    let source = pathfinding_test::jps::Point2d { x: 32, y: 51 };
-    //                    let target = pathfinding_test::jps::Point2d { x: 150, y: 129 };
+    // Main ramp to main ramp
+    //    let source = pathfinding_test::jps::Point2d { x: 32, y: 51 };
+    //    let target = pathfinding_test::jps::Point2d { x: 150, y: 129 };
     let mut pf = pathfinding_test::jps::jps_pf(array);
     let path = pathfinding_test::jps::jps_test(&mut pf, source, target);
     println!("Path: {:?}", path);
