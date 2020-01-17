@@ -25,20 +25,20 @@ where
     }
 }
 
-fn manhattan_heuristic(source: Point2d, target: Point2d) -> f32 {
+fn manhattan_heuristic(source: &Point2d, target: &Point2d) -> f32 {
     (absdiff(source.x, target.x) + absdiff(source.y, target.y)) as f32
 }
 
 static SQRT_2_MINUS_2: f32 = SQRT_2 - 2.0;
 
-fn octal_heuristic(source: Point2d, target: Point2d) -> f32 {
+fn octal_heuristic(source: &Point2d, target: &Point2d) -> f32 {
     let dx = absdiff(source.x, target.x);
     let dy = absdiff(source.y, target.y);
     let min = std::cmp::min(dx, dy);
     dx as f32 + dy as f32 + SQRT_2_MINUS_2 * min as f32
 }
 
-fn euclidean_heuristic(source: Point2d, target: Point2d) -> f32 {
+fn euclidean_heuristic(source: &Point2d, target: &Point2d) -> f32 {
     let x = source.x as i32 - target.x as i32;
     let xx = x * x;
     let y = source.y as i32 - target.y as i32;
@@ -47,7 +47,7 @@ fn euclidean_heuristic(source: Point2d, target: Point2d) -> f32 {
     (sum as f32).sqrt()
 }
 
-fn no_heuristic(_source: Point2d, _target: Point2d) -> f32 {
+fn no_heuristic(_source: &Point2d, _target: &Point2d) -> f32 {
     0.0
 }
 
@@ -267,25 +267,22 @@ impl Ord for JumpPoint {
 impl Eq for JumpPoint {}
 
 pub struct PathFinder {
-//    grid: [[u8; 300];300],
     grid: Array2<u8>,
     heuristic: String,
     jump_points: BinaryHeap<JumpPoint>,
     // Contains points which were already visited
     came_from: HashMap<Point2d, Point2d>,
-    came_from_grid: Array2<u8>,
-    duplicate_checks: u64,
 }
 
 #[allow(dead_code)]
 impl PathFinder {
     fn traverse(
         &mut self,
-        start: Point2d,
+        start: &Point2d,
         direction: Direction,
         target: &Point2d,
         cost_to_start: f32,
-        heuristic: fn(Point2d, Point2d) -> f32,
+        heuristic: fn(&Point2d, &Point2d) -> f32,
     ) -> bool {
         // How far we moved from the start of the function call
         let mut traversed_count: u32 = 0;
@@ -307,7 +304,7 @@ impl PathFinder {
                 (direction.right(), direction.half_right()),
             ];
         }
-        let mut current_point = start;
+        let mut current_point = *start;
         // Stores wall status - if a side is no longer blocked: create jump point and fork path
         let (mut left_blocked, mut right_blocked) = (false, false);
         let mut added_jump_point: bool = false;
@@ -315,11 +312,9 @@ impl PathFinder {
             // Goal found, construct path
             if current_point == *target {
                 self.add_came_from(&current_point, &start);
-                //                self.add_came_from_grid(&current_point, direction);
                 println!("Found goal: {:?} {:?}", current_point, direction);
                 println!("Size of open list: {:?}", self.jump_points.len());
                 println!("Size of came from: {:?}", self.came_from.len());
-                println!("Duplciate checks: {:?}", self.duplicate_checks);
                 return true;
             }
             // We loop over each direction that isnt the traversal direction
@@ -341,7 +336,6 @@ impl PathFinder {
 
                     if index < 2 {
                         if self.add_came_from(&current_point, &start) {
-                            //                        if self.add_came_from_grid(&current_point, direction) {
                             // We were already at this point because a new jump point was created here - this means we either are going in a circle or we come from a path that is longer?
                             break;
                         }
@@ -351,7 +345,7 @@ impl PathFinder {
                             direction: *traversal_dir,
                             cost_to_start: new_cost_to_start,
                             total_cost_estimate: new_cost_to_start
-                                + heuristic(current_point, *target),
+                                + heuristic(&current_point, target),
                         });
                         // If this is non-diagonal traversal, this is used to store a 'came_from' point
                         added_jump_point = true;
@@ -359,7 +353,7 @@ impl PathFinder {
                         // If this is diagonal traversal, instantly traverse the non-diagonal directions without adding them to min-heap first
                         let next_point = current_point.add_direction(*traversal_dir);
                         let added_jump_point_from_non_diagonal_traversal = self.traverse(
-                            next_point,
+                            &next_point,
                             *traversal_dir,
                             target,
                             new_cost_to_start + 1.0,
@@ -369,8 +363,6 @@ impl PathFinder {
                         if added_jump_point_from_non_diagonal_traversal {
                             self.add_came_from(&next_point, &current_point);
                             self.add_came_from(&current_point, &start);
-                            //                            self.add_came_from_grid(&next_point, *traversal_dir);
-                            //                            self.add_came_from_grid(&current_point, direction);
                         }
                     }
                     // Mark the side no longer as blocked
@@ -409,15 +401,6 @@ impl PathFinder {
         return true;
     }
 
-    fn add_came_from_grid(&mut self, p: &Point2d, d: Direction) -> bool {
-        // Returns 'already_visited' boolean
-        if self.came_from_grid[[p.y, p.x]] == 0 {
-            self.came_from_grid[[p.y, p.x]] = d.to_value();
-            return false;
-        }
-        return true;
-    }
-
     fn is_in_grid(&self, point: Point2d) -> bool {
         self.grid[[point.y, point.x]] == 1
     }
@@ -431,7 +414,11 @@ impl PathFinder {
         None
     }
 
-    fn get_direction(&self, source: Point2d, target: Point2d) -> Direction {
+    fn goal_reached(&self, target: &Point2d) -> bool {
+        self.came_from.contains_key(&target)
+    }
+
+    fn get_direction(&self, source: &Point2d, target: &Point2d) -> Direction {
         let mut x = 0;
         let mut y = 0;
         if target.x < source.x {
@@ -449,43 +436,17 @@ impl PathFinder {
 
     fn construct_path(
         &self,
-        source: Point2d,
-        target: Point2d,
-        construct_full_path: bool,
-    ) -> Option<Vec<Point2d>> {
-        let mut path = vec![];
-        let mut pos = &target;
-
-        path.push(target);
-        while *pos != source {
-            pos = self.came_from.get(&pos).unwrap();
-            path.push(*pos);
-        }
-        // TODO use variable construct_full_path
-
-        path.reverse();
-        Some(path)
-    }
-    fn construct_path_grid(
-        &self,
-        source: Point2d,
-        target: Point2d,
+        source: &Point2d,
+        target: &Point2d,
         construct_full_path: bool,
     ) -> Option<Vec<Point2d>> {
         let mut path = vec![];
         let mut pos = target;
-        let mut dir_value: u8;
-        let mut dir: Direction = Direction::from_value_reverse(self.came_from_grid[[pos.y, pos.x]]);
 
-        path.push(target);
+        path.push(*target);
         while pos != source {
-            dir_value = self.came_from_grid[[pos.y, pos.x]];
-            if dir_value != 0 {
-                dir = Direction::from_value_reverse(dir_value);
-            }
-            println!("{:?}", pos);
-            pos = pos.add_direction(dir);
-            path.push(pos);
+            pos = self.came_from.get(&pos).unwrap();
+            path.push(*pos);
         }
         // TODO use variable construct_full_path
 
@@ -509,12 +470,13 @@ impl PathFinder {
             return None;
         }
 
-        let heuristic: fn(Point2d, Point2d) -> f32;
+        let heuristic: fn(&Point2d, &Point2d) -> f32;
         match self.heuristic.as_ref() {
             "manhattan" => heuristic = manhattan_heuristic,
             "octal" => heuristic = octal_heuristic,
             "euclidean" => heuristic = euclidean_heuristic,
-            "none" => heuristic = no_heuristic,
+            // Memory overflow!
+            // "none" => heuristic = no_heuristic,
             _ => heuristic = euclidean_heuristic,
         }
 
@@ -534,7 +496,7 @@ impl PathFinder {
         {
             let cost_to_start = if index > 3 { SQRT_2 } else { 1.0 };
             let new_node = source.add_tuple(*n);
-            let estimate = heuristic(new_node, *target);
+            let estimate = heuristic(&new_node, target);
             let dir = Direction { x: n.0, y: n.1 };
             let left_blocked = self.new_point_in_grid(source, dir.left()).is_none();
             let right_blocked = self.new_point_in_grid(source, dir.right()).is_none();
@@ -545,7 +507,6 @@ impl PathFinder {
                 total_cost_estimate: cost_to_start + estimate,
             });
             self.add_came_from(&new_node, &source);
-            //            self.add_came_from_grid(&new_node, dir);
         }
 
         while let Some(JumpPoint {
@@ -555,14 +516,11 @@ impl PathFinder {
             total_cost_estimate: _,
         }) = self.jump_points.pop()
         {
-            self.traverse(start, direction, &target, cost_to_start, heuristic);
+            self.traverse(&start, direction, &target, cost_to_start, heuristic);
 
-            if self.came_from.contains_key(target) {
-                return self.construct_path(*source, *target, false);
+            if self.goal_reached(&target) {
+                return self.construct_path(source, target, false);
             }
-            //            if self.came_from_grid[[target.y, target.x]] != 0 {
-            //                return self.construct_path_grid(*source, *target, false);
-            //            }
         }
 
         None
@@ -572,34 +530,20 @@ impl PathFinder {
 static SOURCE: Point2d = Point2d { x: 5, y: 5 };
 static TARGET: Point2d = Point2d { x: 10, y: 12 };
 
-//pub fn jps_test(grid: [[u8; 100]; 100]) {
-//pub fn jps_test(grid: Vec<Vec<u8>>) {
 pub fn jps_pf(grid: Array2<u8>) -> PathFinder {
-    let came_from_grid = Array::zeros(grid.raw_dim());
-    let mut array = [[0u8;300];300];
-    let dim = grid.raw_dim();
-    for y in 0..dim[0] {
-        for x in 0..dim[1] {
-            array[y][x] = grid[[y, x]];
-        }
-    }
     PathFinder {
         grid: grid,
         heuristic: String::from("octal"),
         jump_points: BinaryHeap::new(),
         came_from: HashMap::new(),
-        came_from_grid: came_from_grid,
-        duplicate_checks: 0,
-    }}
-
+    }
+}
 
 pub fn jps_test(pf: &mut PathFinder, source: Point2d, target: Point2d) -> Option<Vec<Point2d>> {
     let path = pf.find_path(&source, &target);
     return path;
 }
 
-//pub fn grid_setup(size: usize) ->  [[u8; 100]; 100] {
-//pub fn grid_setup(size: usize) ->  Vec<Vec<u8>> {
 pub fn grid_setup(size: usize) -> Array2<u8> {
     // https://stackoverflow.com/a/59043086/10882657
     let mut ndarray = Array2::<u8>::ones((size, size));
@@ -637,51 +581,6 @@ pub fn read_grid_from_file(path: String) -> Result<(Array2<u8>, u32, u32), std::
 
     let array = Array::from(my_vec).into_shape((height, width)).unwrap();
     Ok((array, height as u32, width as u32))
-}
-
-fn vec_2d_setup() -> Vec<Vec<u8>> {
-    let width = 100;
-    let height = 100;
-    let grid = vec![vec![1; width]; height];
-    grid
-}
-
-fn vec_2d_index_test(my_vec: &Vec<Vec<u8>>) {
-    for y in 0..100 {
-        for x in 0..100 {
-            my_vec[y][x];
-        }
-    }
-}
-
-fn array_2d_setup() -> [[u8; 100]; 100] {
-    const WIDTH: usize = 100;
-    const HEIGHT: usize = 100;
-    let array = [[1u8; WIDTH]; HEIGHT];
-    array
-}
-
-fn array_2d_index_test(my_vec: &[[u8; 100]; 100]) {
-    for y in 0..100 {
-        for x in 0..100 {
-            my_vec[y][x];
-        }
-    }
-}
-
-fn ndarray_setup() -> Array2<u8> {
-    let width = 100;
-    let height = 100;
-    let grid = Array2::<u8>::ones((width, height));
-    grid
-}
-
-fn ndarray_index_test(my_vec: &Array2<u8>) {
-    for y in 0..100 {
-        for x in 0..100 {
-            my_vec[[y, x]];
-        }
-    }
 }
 
 #[cfg(test)] // Only compiles when running tests
@@ -744,27 +643,10 @@ mod tests {
         b.iter(|| jps_test(&mut pf, source, target));
     }
 
-//    #[bench]
-//    fn bench_jps_test(b: &mut Bencher) {
-//        let grid = grid_setup(100);
-//        b.iter(|| jps_test(grid.clone(), SOURCE, TARGET));
-//    }
-//
-//    #[bench]
-//    fn bench_index_vec_vec_u8(b: &mut Bencher) {
-//        let grid = vec_2d_setup();
-//        b.iter(|| vec_2d_index_test(&grid));
-//    }
-//
-//    #[bench]
-//    fn bench_index_array_u8(b: &mut Bencher) {
-//        let grid = array_2d_setup();
-//        b.iter(|| array_2d_index_test(&grid));
-//    }
-//
-//    #[bench]
-//    fn bench_index_ndarray_u8(b: &mut Bencher) {
-//        let grid = ndarray_setup();
-//        b.iter(|| ndarray_index_test(&grid));
-//    }
+    #[bench]
+    fn bench_jps_test(b: &mut Bencher) {
+        let grid = grid_setup(30);
+        let mut pf = jps_pf(grid);
+        b.iter(|| jps_test(&mut pf, SOURCE, TARGET));
+    }
 }
