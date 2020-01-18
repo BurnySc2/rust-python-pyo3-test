@@ -254,13 +254,11 @@ impl PathFinder {
                 //  if grid point has value == 0 (or -1?): is wall
 
                 let new_cost_to_source = cost_to_source + *real_cost;
-                let estimate_cost = heuristic(&new_node, target);
-                let total_estimated_cost = new_cost_to_source + estimate_cost;
 
                 // Should perhaps check if position is already in open list, but doesnt matter
                 heap.push(Node {
                     cost_to_source: new_cost_to_source,
-                    total_estimated_cost,
+                    total_estimated_cost: new_cost_to_source + heuristic(&new_node, target),
                     position: new_node,
                     came_from: position,
                 });
