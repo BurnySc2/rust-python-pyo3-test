@@ -22,7 +22,7 @@ fn write_path_to_file(path: Vec<pathfinding_test::jps::Point2d>) {
 fn main() {
     //    // Test on actual map AutomatonLE.txt
     let result = pathfinding_test::jps::read_grid_from_file(String::from("AutomatonLE.txt"));
-    let (array, height, width) = result.unwrap();
+    let (array, _height, _width) = result.unwrap();
     //        let source = pathfinding_test::jps::Point2d { x: 70, y: 100 };
     //        let target = pathfinding_test::jps::Point2d { x: 100, y: 114 };
 

@@ -1,7 +1,7 @@
 // https://github.com/mikolalysenko/l1-path-finder
 
 // https://en.wikipedia.org/wiki/Jump_point_search
-use std::collections::{BinaryHeap, HashMap, HashSet};
+use std::collections::{BinaryHeap, HashMap};
 
 use std::cmp::Ordering;
 use std::f32::consts::SQRT_2;
@@ -9,7 +9,7 @@ use std::f32::EPSILON;
 use std::ops::Sub;
 
 use ndarray::Array;
-use ndarray::Array1;
+
 use ndarray::Array2;
 //use ndarray::ArrayBase;
 
@@ -211,26 +211,11 @@ pub struct Point2d {
 }
 
 impl Point2d {
-    fn add(&self, other: &Self) -> Point2d {
-        Point2d {
-            x: self.x + other.x,
-            y: self.y + other.y,
-        }
-    }
-    fn add_tuple(&self, other: (i32, i32)) -> Point2d {
-        Point2d {
-            x: (self.x as i32 + other.0) as usize,
-            y: (self.y as i32 + other.1) as usize,
-        }
-    }
     fn add_direction(&self, other: Direction) -> Point2d {
         Point2d {
             x: (self.x as i32 + other.x) as usize,
             y: (self.y as i32 + other.y) as usize,
         }
-    }
-    fn is_in_grid(&self, grid: Vec<Vec<u8>>) -> bool {
-        grid[self.y][self.x] == 1
     }
 }
 
@@ -288,24 +273,23 @@ impl PathFinder {
     ) {
         // How far we moved from the start of the function call
         let mut traversed_count: u32 = 0;
-        let add_nodes: Vec<(Direction, Direction)>;
-        if direction.is_diagonal() {
+        let add_nodes: Vec<(Direction, Direction)> = if direction.is_diagonal() {
             // The first two entries will be checked for left_blocked and right_blocked, if a wall was encountered but that position is now free (forced neighbors?)
             // If the vec has more than 2 elements, then the remaining will not be checked for walls (this is the case in diagonal movement where it forks off to horizontal+vertical movement)
             // (blocked_direction from current_node, traversal_direction)
             let (half_left, half_right) = (direction.half_left(), direction.half_right());
-            add_nodes = vec![
+            vec![
                 (direction.left135(), direction.left()),
                 (direction.right135(), direction.right()),
                 (half_left, half_left),
                 (half_right, half_right),
-            ];
+            ]
         } else {
-            add_nodes = vec![
+            vec![
                 (direction.left(), direction.half_left()),
                 (direction.right(), direction.half_right()),
-            ];
-        }
+            ]
+        };
         let mut current_point = *start;
         // Stores wall status - if a side is no longer blocked: create jump point and fork path
         let (mut left_blocked, mut right_blocked) = (false, false);
@@ -313,17 +297,18 @@ impl PathFinder {
             // Goal found, construct path
             if current_point == *target {
                 self.add_came_from(&current_point, &start);
-                println!("Found goal: {:?} {:?}", current_point, direction);
-                println!("Size of open list: {:?}", self.jump_points.len());
-                println!("Size of came from: {:?}", self.came_from.len());
-                return ();
+                //                println!("Found goal: {:?} {:?}", current_point, direction);
+                //                println!("Size of open list: {:?}", self.jump_points.len());
+                //                println!("Size of came from: {:?}", self.came_from.len());
+                return;
             }
             // We loop over each direction that isnt the traversal direction
             // For diagonal traversal this is 2 checks (left is wall, right is wall), and 2 forks (horizontal+vertical movement)
             // For non-diagonal traversal this is only checking if there are walls on the side
             for (index, (check_dir, traversal_dir)) in add_nodes.iter().enumerate() {
                 // Check if in that direction is a wall
-                let check_point_is_in_grid = self.is_in_grid(current_point.add_direction(*check_dir));
+                let check_point_is_in_grid =
+                    self.is_in_grid(current_point.add_direction(*check_dir));
 
                 if (index == 0 && left_blocked || index == 1 && right_blocked || index > 1)
                     && traversed_count != 0
@@ -369,7 +354,7 @@ impl PathFinder {
                         // The non-diagonal traversal created a jump point and added it to the min-heap, so to backtrack from target/goal, we need to add this position to 'came_from'
                         self.add_came_from(&current_point, &start);
                     }
-                } else if index == 0 && !check_point_is_in_grid{
+                } else if index == 0 && !check_point_is_in_grid {
                     // If this direction (left) has now a wall, mark as blocked
                     left_blocked = true;
                 } else if index == 1 && !check_point_is_in_grid {
@@ -394,7 +379,7 @@ impl PathFinder {
             self.came_from.insert(*p1, *p2);
             return false;
         }
-        return true;
+        true
     }
 
     fn is_in_grid(&self, point: Point2d) -> bool {
@@ -415,17 +400,17 @@ impl PathFinder {
     }
 
     fn get_direction(&self, source: &Point2d, target: &Point2d) -> Direction {
-        let mut x = 0;
-        let mut y = 0;
-        if target.x < source.x {
-            x = -1;
-        } else if target.x > source.x {
-            x = 1;
+        let x: i32;
+        let y: i32;
+        match source.x.cmp(&target.x) {
+            Ordering::Greater => x = -1,
+            Ordering::Less => x = 1,
+            Ordering::Equal => x = 0,
         }
-        if target.y < source.y {
-            y = -1;
-        } else if target.y > source.y {
-            y = 1;
+        match source.y.cmp(&target.y) {
+            Ordering::Greater => y = -1,
+            Ordering::Less => y = 1,
+            Ordering::Equal => y = 0,
         }
         Direction { x, y }
     }
@@ -436,16 +421,27 @@ impl PathFinder {
         target: &Point2d,
         construct_full_path: bool,
     ) -> Option<Vec<Point2d>> {
-        let mut path = vec![];
-        let mut pos = target;
+        let mut path: Vec<Point2d> = vec![];
+        let mut pos = *target;
 
-        path.push(*target);
-        while pos != source {
-            pos = self.came_from.get(&pos).unwrap();
-            path.push(*pos);
+        path.push(pos);
+        if construct_full_path {
+            while &pos != source {
+                let temp_target = self.came_from.get(&pos).unwrap();
+                let dir = self.get_direction(&pos, temp_target);
+                let mut temp_pos = pos;
+                while &temp_pos != temp_target {
+                    temp_pos = temp_pos.add_direction(dir);
+                    path.push(temp_pos);
+                }
+                pos = *temp_target;
+            }
+        } else {
+            while &pos != source {
+                pos = *self.came_from.get(&pos).unwrap();
+                path.push(pos);
+            }
         }
-        // TODO use variable construct_full_path
-
         path.reverse();
         Some(path)
     }
@@ -485,8 +481,8 @@ impl PathFinder {
         ]
         .iter()
         {
-            let left_blocked = self.new_point_in_grid(source, dir.left()).is_none();
-            let right_blocked = self.new_point_in_grid(source, dir.right()).is_none();
+            let _left_blocked = self.new_point_in_grid(source, dir.left()).is_none();
+            let _right_blocked = self.new_point_in_grid(source, dir.right()).is_none();
             self.jump_points.push(JumpPoint {
                 start: *source,
                 direction: *dir,
@@ -499,7 +495,7 @@ impl PathFinder {
             start,
             direction,
             cost_to_start,
-            total_cost_estimate: _,
+            ..
         }) = self.jump_points.pop()
         {
             if self.goal_reached(&target) {
@@ -513,12 +509,9 @@ impl PathFinder {
     }
 }
 
-static SOURCE: Point2d = Point2d { x: 5, y: 5 };
-static TARGET: Point2d = Point2d { x: 10, y: 12 };
-
 pub fn jps_pf(grid: Array2<u8>) -> PathFinder {
     PathFinder {
-        grid: grid,
+        grid,
         heuristic: String::from("octal"),
         jump_points: BinaryHeap::new(),
         //        came_from: HashMap::with_capacity_and_hasher(10000, Hash64),
@@ -527,8 +520,7 @@ pub fn jps_pf(grid: Array2<u8>) -> PathFinder {
 }
 
 pub fn jps_test(pf: &mut PathFinder, source: Point2d, target: Point2d) -> Option<Vec<Point2d>> {
-    let path = pf.find_path(&source, &target);
-    return path;
+    pf.find_path(&source, &target)
 }
 
 pub fn grid_setup(size: usize) -> Array2<u8> {
@@ -622,7 +614,7 @@ mod tests {
     fn bench_jps_test_from_file(b: &mut Bencher) {
         // Setup
         let result = read_grid_from_file(String::from("AutomatonLE.txt"));
-        let (array, height, width) = result.unwrap();
+        let (array, _height, _width) = result.unwrap();
         // Spawn to spawn
         let source = Point2d { x: 32, y: 51 };
         let target = Point2d { x: 150, y: 129 };
@@ -630,7 +622,7 @@ mod tests {
         // Main ramp to main ramp
         //                let source = Point2d { x: 32, y: 51 };
         //                let target = Point2d { x: 150, y: 129 };
-        let mut pf = jps_pf(array.clone());
+        let mut pf = jps_pf(array);
         // Run bench
         b.iter(|| jps_test(&mut pf, source, target));
     }
@@ -639,6 +631,8 @@ mod tests {
     fn bench_jps_test(b: &mut Bencher) {
         let grid = grid_setup(30);
         let mut pf = jps_pf(grid);
-        b.iter(|| jps_test(&mut pf, SOURCE, TARGET));
+        let source: Point2d = Point2d { x: 5, y: 5 };
+        let target: Point2d = Point2d { x: 10, y: 12 };
+        b.iter(|| jps_test(&mut pf, source, target));
     }
 }

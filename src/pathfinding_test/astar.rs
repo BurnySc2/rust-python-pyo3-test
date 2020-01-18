@@ -14,7 +14,7 @@ use pyo3::types::PyAny;
 use std::ops::Sub;
 
 use ndarray::Array;
-use ndarray::Array1;
+
 use ndarray::Array2;
 
 use std::fs::File;
@@ -320,20 +320,20 @@ mod tests {
         PathFinder {
             allow_diagonal: true,
             heuristic: String::from("manhattan"),
-            grid: grid,
-            came_from_grid: came_from_grid,
+            grid,
+            came_from_grid,
         }
     }
 
     fn astar_test(pf: &mut PathFinder, source: Point2d, target: Point2d) -> Option<Vec<Point2d>> {
         let path = pf.find_path(&source, &target);
-        return path;
+        path
     }
 
     #[bench]
     fn bench_astar_test_from_file(b: &mut Bencher) {
         let result = read_grid_from_file(String::from("AutomatonLE.txt"));
-        let (array, height, width) = result.unwrap();
+        let (array, _height, _width) = result.unwrap();
         // Spawn to spawn
         let source = Point2d { x: 32, y: 51 };
         let target = Point2d { x: 150, y: 129 };

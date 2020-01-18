@@ -37,7 +37,7 @@ def get_map_specific_bots() -> Iterable[BotAI]:
         yield bot
 # Global bot object that is used in TestClass.test_position_*
 bot_object_generator = get_map_specific_bots()
-random_bot_object: BotAI = next(bot_object_generator)
+# random_bot_object: BotAI = next(bot_object_generator)
 
 # print(random_bot_object.game_info.start_locations)
 # print(random_bot_object.townhalls[0].position)
