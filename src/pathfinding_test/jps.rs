@@ -299,10 +299,10 @@ pub struct PathFinder {
 //#[pymethods]
 #[allow(dead_code)]
 impl PathFinder {
-    //    #[new]
-    //    fn new(obj: &PyRawObject, grid_: Array2<u8>, heuristic_: String, jump_points_: BinaryHeap<JumpPoint>, came_from_: FnvHashMap<Point2d, Point2d>) {
-    //        obj.init(PathFinder { grid: grid_, heuristic: heuristic_, jump_points: jump_points_, came_from: came_from_})
-    //    }
+    //        #[new]
+    //        fn new(obj: &PyRawObject, grid_: Array2<u8>, heuristic_: String, jump_points_: BinaryHeap<JumpPoint>, came_from_: FnvHashMap<Point2d, Point2d>) {
+    //            obj.init(PathFinder { grid: grid_, heuristic: heuristic_, jump_points: jump_points_, came_from: came_from_})
+    //        }
 
     fn traverse(
         &mut self,

@@ -10,7 +10,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 cute = "0.3"
-#numpy = "0.7.0"
+numpy = "0.7.0"
 ndarray = "0.13"
 pathfinding = "2.0"
 indexmap = "1.3"
