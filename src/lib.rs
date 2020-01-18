@@ -34,16 +34,16 @@ pub struct Point {
 
 #[pymethods]
 impl Point {
-    //    #[new]
-    //    fn new(obj: &PyRawObject, x_: f64, y_: f64) {
-    //        obj.init(Point { x: x_, y: y_ })
-    //    }
-    //    fn distance_to(&self, other: &Point) -> f64 {
-    //        ((self.x - other.x).powi(2) + (self.y - other.y).powi(2)).sqrt()
-    //    }
-    //    fn distance_to_squared(&self, other: &Point) -> f64 {
-    //        (self.x - other.x).powi(2) + (self.y - other.y).powi(2)
-    //    }
+        #[new]
+        fn new(obj: &PyRawObject, x_: f64, y_: f64) {
+            obj.init(Point { x: x_, y: y_ })
+        }
+//        fn distance_to(&self, other: &Point) -> f64 {
+//            ((self.x - other.x).powi(2) + (self.y - other.y).powi(2)).sqrt()
+//        }
+//        fn distance_to_squared(&self, other: &Point) -> f64 {
+//            (self.x - other.x).powi(2) + (self.y - other.y).powi(2)
+//        }
 }
 //
 ///// Implements the repr function for Point class: https://pyo3.rs/v0.8.4/class.html#string-conversions
