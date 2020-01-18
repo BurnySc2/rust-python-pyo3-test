@@ -18,7 +18,6 @@ use ndarray::Array2;
 use fnv::FnvHashMap;
 use fnv::FnvHasher;
 
-
 #[allow(dead_code)]
 pub fn absdiff<T>(x: T, y: T) -> T
 where
@@ -419,36 +418,40 @@ impl PathFinder {
         self.came_from.contains_key(&target)
     }
 
-
     fn construct_path(
         &self,
         source: &Point2d,
         target: &Point2d,
         construct_full_path: bool,
     ) -> Option<Vec<Point2d>> {
-        let mut path: Vec<Point2d> = vec![];
-        let mut pos = *target;
-
-        path.push(pos);
         if construct_full_path {
+            let mut path: Vec<Point2d> = Vec::with_capacity(100);
+            let mut pos = *target;
+            path.push(pos);
             while &pos != source {
-                let temp_target = self.came_from.get(&pos).unwrap();
-                let dir = pos.get_direction(temp_target);
-                let mut temp_pos = pos;
-                while &temp_pos != temp_target {
-                    temp_pos = temp_pos.add_direction(dir);
+                let temp_target = *self.came_from.get(&pos).unwrap();
+                let dir = pos.get_direction(&temp_target);
+                let mut temp_pos = pos.add_direction(dir);
+                while temp_pos != temp_target {
                     path.push(temp_pos);
+                    temp_pos = temp_pos.add_direction(dir);
                 }
-                pos = *temp_target;
+                pos = temp_target;
             }
+            path.push(*source);
+            path.reverse();
+            Some(path)
         } else {
-            while &pos != source {
-                pos = *self.came_from.get(&pos).unwrap();
-                path.push(pos);
+            let mut path: Vec<Point2d> = Vec::with_capacity(20);
+            path.push(*target);
+            let mut pos = self.came_from.get(target).unwrap();
+            while pos != source {
+                pos = self.came_from.get(&pos).unwrap();
+                path.push(*pos);
             }
+            path.reverse();
+            Some(path)
         }
-        path.reverse();
-        Some(path)
     }
 
     fn find_path(&mut self, source: &Point2d, target: &Point2d) -> Option<Vec<Point2d>> {
