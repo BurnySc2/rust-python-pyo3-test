@@ -13,7 +13,11 @@ use ndarray::Array;
 use ndarray::Array2;
 //use ndarray::ArrayBase;
 
-use fasthash::sea::Hash64;
+//use fasthash::sea::Hash64;
+
+use fnv::FnvHashMap;
+use fnv::FnvHasher;
+
 
 #[allow(dead_code)]
 pub fn absdiff<T>(x: T, y: T) -> T
@@ -258,7 +262,8 @@ pub struct PathFinder {
     heuristic: String,
     jump_points: BinaryHeap<JumpPoint>,
     // Contains points which were already visited
-    came_from: HashMap<Point2d, Point2d, Hash64>,
+    came_from: FnvHashMap<Point2d, Point2d>,
+//    came_from: HashMap<Point2d, Point2d>,
 }
 
 #[allow(dead_code)]
@@ -515,7 +520,9 @@ pub fn jps_pf(grid: Array2<u8>) -> PathFinder {
         heuristic: String::from("octal"),
         jump_points: BinaryHeap::new(),
         //        came_from: HashMap::with_capacity_and_hasher(10000, Hash64),
-        came_from: HashMap::with_hasher(Hash64),
+//        came_from: HashMap::new(),
+        came_from: FnvHashMap::default(),
+//        came_from: HashMap::with_hasher(Hash64),
     }
 }
 
