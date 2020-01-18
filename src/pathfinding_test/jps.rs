@@ -323,10 +323,11 @@ impl PathFinder {
             // For non-diagonal traversal this is only checking if there are walls on the side
             for (index, (check_dir, traversal_dir)) in add_nodes.iter().enumerate() {
                 // Check if in that direction is a wall
-                let check_point = self.new_point_in_grid(&current_point, *check_dir);
+                let check_point_is_in_grid = self.is_in_grid(current_point.add_direction(*check_dir));
+
                 if (index == 0 && left_blocked || index == 1 && right_blocked || index > 1)
-                    && traversed_count > 0
-                    && check_point.is_some()
+                    && traversed_count != 0
+                    && check_point_is_in_grid
                 {
                     // If there is no longer a wall in that direction, add jump point to binary heap
                     let new_cost_to_start = if traversal_dir.is_diagonal() {
@@ -348,10 +349,16 @@ impl PathFinder {
                             total_cost_estimate: new_cost_to_start
                                 + heuristic(&current_point, target),
                         });
+
+                        // Mark the side no longer as blocked
+                        if index == 0 {
+                            left_blocked = false;
+                        } else {
+                            right_blocked = false;
+                        }
                     // If this is non-diagonal traversal, this is used to store a 'came_from' point
                     } else {
                         // If this is diagonal traversal, instantly traverse the non-diagonal directions without adding them to min-heap first
-                        //                        let next_point = current_point.add_direction(*traversal_dir);
                         self.traverse(
                             &current_point,
                             *traversal_dir,
@@ -362,36 +369,29 @@ impl PathFinder {
                         // The non-diagonal traversal created a jump point and added it to the min-heap, so to backtrack from target/goal, we need to add this position to 'came_from'
                         self.add_came_from(&current_point, &start);
                     }
-                    // Mark the side no longer as blocked
-                    if index == 0 {
-                        left_blocked = false;
-                    } else if index == 1 {
-                        right_blocked = false;
-                    }
-                } else if index == 0 && check_point.is_none() {
+                } else if index == 0 && !check_point_is_in_grid{
                     // If this direction (left) has now a wall, mark as blocked
                     left_blocked = true;
-                } else if index == 1 && check_point.is_none() {
+                } else if index == 1 && !check_point_is_in_grid {
                     // If this direction (right) has now a wall, mark as blocked
                     right_blocked = true
                 }
             }
 
-            if let Some(new_point) = self.new_point_in_grid(&current_point, direction) {
-                // Next traversal point is pathable
-                current_point = new_point;
-                traversed_count += 1;
-            } else {
+            current_point = current_point.add_direction(direction);
+            if !self.is_in_grid(current_point) {
                 // Next traversal point is a wall - this traversal is done
                 break;
             }
+            // Next traversal point is pathable
+            traversed_count += 1;
         }
     }
 
-    fn add_came_from(&mut self, p: &Point2d, p2: &Point2d) -> bool {
+    fn add_came_from(&mut self, p1: &Point2d, p2: &Point2d) -> bool {
         // Returns 'already_visited' boolean
-        if !self.came_from.contains_key(p) {
-            self.came_from.insert(*p, *p2);
+        if !self.came_from.contains_key(p1) {
+            self.came_from.insert(*p1, *p2);
             return false;
         }
         return true;
