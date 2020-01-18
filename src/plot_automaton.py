@@ -17,8 +17,7 @@ from sc2.bot_ai import BotAI
 
 def get_map_specific_bots() -> Iterable[BotAI]:
     folder = os.path.dirname(__file__)
-    subfolder_name = folder
-    # subfolder_name = "pickle_data"
+    subfolder_name = "pickle_data"
     pickle_folder_path = os.path.join(folder, subfolder_name)
     files = os.listdir(pickle_folder_path)
     for file in (f for f in files if f.endswith(".xz")):

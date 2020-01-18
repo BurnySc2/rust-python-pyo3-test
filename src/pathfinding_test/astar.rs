@@ -141,7 +141,7 @@ fn euclidean_heuristic(source: &Point2d, target: &Point2d) -> f32 {
     ((xx + yy) as f32).sqrt()
 }
 
-fn no_heuristic(_source: &Point2d, _target: &Point2d) -> f32 {
+fn no_heuristic(_source: &Point2d, target: &Point2d) -> f32 {
     0.0
 }
 
@@ -151,13 +151,11 @@ fn construct_path(
     nodes_map: &HashMap<Point2d, Point2d>,
 ) -> Option<Vec<Point2d>> {
     let mut path = vec![];
-    let mut pos = nodes_map.get(&target)?;
-    loop {
+    path.push(*target);
+    let mut pos = nodes_map.get(&target).unwrap();
+    while pos != source {
         path.push(*pos);
-        pos = nodes_map.get(pos)?;
-        if pos == source {
-            break;
-        }
+        pos = nodes_map.get(pos).unwrap();
     }
     path.push(*source);
     path.reverse();
@@ -227,12 +225,11 @@ impl PathFinder {
             _ => heuristic = euclidean_heuristic,
         }
 
-        //        while let Some(current) = heap.pop() {
         while let Some(Node {
             cost_to_source,
-            total_estimated_cost: _,
             position,
             came_from,
+            ..
         }) = heap.pop()
         {
             // Already checked this position
@@ -267,9 +264,6 @@ impl PathFinder {
         None
     }
 }
-
-static SOURCE: Point2d = Point2d { x: 5, y: 5 };
-static TARGET: Point2d = Point2d { x: 50, y: 90 };
 
 pub fn grid_setup(size: usize) -> Array2<u8> {
     // Set up a grid with size 'size' and make the borders a wall (value 1)
@@ -325,8 +319,8 @@ mod tests {
         }
     }
 
-    fn astar_test(pf: &mut PathFinder, source: Point2d, target: Point2d) -> Option<Vec<Point2d>> {
-        let path = pf.find_path(&source, &target);
+    fn astar_test(pf: &mut PathFinder, source: &Point2d, target: &Point2d) -> Option<Vec<Point2d>> {
+        let path = pf.find_path(source, target);
         path
     }
 
@@ -341,6 +335,15 @@ mod tests {
         //        let source = Point2d { x: 32, y: 51 };
         //        let target = Point2d { x: 150, y: 129 };
         let mut pf = astar_pf(array);
-        b.iter(|| astar_test(&mut pf, source, target));
+        b.iter(|| astar_test(&mut pf, &source, &target));
+    }
+
+    #[bench]
+    fn bench_astar_test(b: &mut Bencher) {
+        let grid = grid_setup(30);
+        let mut pf = astar_pf(grid);
+        let source: Point2d = Point2d { x: 5, y: 5 };
+        let target: Point2d = Point2d { x: 10, y: 12 };
+        b.iter(|| astar_test(&mut pf, &source, &target));
     }
 }

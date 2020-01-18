@@ -9,14 +9,15 @@ use std::f32::EPSILON;
 use std::ops::Sub;
 
 use ndarray::Array;
-
 use ndarray::Array2;
-//use ndarray::ArrayBase;
-
-//use fasthash::sea::Hash64;
 
 use fnv::FnvHashMap;
 use fnv::FnvHasher;
+
+use pyo3::prelude::*;
+use pyo3::types::PyAny;
+use pyo3::wrap_pyfunction;
+use pyo3::PyObjectProtocol;
 
 #[allow(dead_code)]
 pub fn absdiff<T>(x: T, y: T) -> T
@@ -207,6 +208,7 @@ impl Direction {
     }
 }
 
+#[pyclass]
 #[derive(Debug, Hash, Eq, PartialEq, Copy, Clone)]
 pub struct Point2d {
     pub x: usize,
@@ -235,6 +237,19 @@ impl Point2d {
             Ordering::Equal => y = 0,
         }
         Direction { x, y }
+    }
+}
+
+impl<'source> FromPyObject<'source> for Point2d {
+    fn extract(ob: &'source PyAny) -> PyResult<Point2d> {
+        unsafe {
+            let py = Python::assume_gil_acquired();
+            let obj = ob.to_object(py);
+            Ok(Self {
+                x: obj.getattr(py, "x")?.extract(py)?,
+                y: obj.getattr(py, "y")?.extract(py)?,
+            })
+        }
     }
 }
 
@@ -272,6 +287,7 @@ impl Ord for JumpPoint {
 
 impl Eq for JumpPoint {}
 
+#[pyclass]
 pub struct PathFinder {
     grid: Array2<u8>,
     heuristic: String,
@@ -280,8 +296,14 @@ pub struct PathFinder {
     came_from: FnvHashMap<Point2d, Point2d>,
 }
 
+//#[pymethods]
 #[allow(dead_code)]
 impl PathFinder {
+    //    #[new]
+    //    fn new(obj: &PyRawObject, grid_: Array2<u8>, heuristic_: String, jump_points_: BinaryHeap<JumpPoint>, came_from_: FnvHashMap<Point2d, Point2d>) {
+    //        obj.init(PathFinder { grid: grid_, heuristic: heuristic_, jump_points: jump_points_, came_from: came_from_})
+    //    }
+
     fn traverse(
         &mut self,
         start: &Point2d,
@@ -630,6 +652,32 @@ mod tests {
         //                let source = Point2d { x: 32, y: 51 };
         //                let target = Point2d { x: 150, y: 129 };
         let mut pf = jps_pf(array);
+        let path = jps_test(&mut pf, &source, &target);
+        assert_ne!(None, path);
+        assert!(path.unwrap().len() > 0);
+        // Run bench
+        b.iter(|| jps_test(&mut pf, &source, &target));
+    }
+
+    #[bench]
+    fn bench_jps_test_from_file_no_path(b: &mut Bencher) {
+        // Setup
+        let result = read_grid_from_file(String::from("AutomatonLE.txt"));
+        let (mut array, _height, _width) = result.unwrap();
+        // Spawn to spawn
+        let source = Point2d { x: 32, y: 51 };
+        let target = Point2d { x: 150, y: 129 };
+
+        // Block entrance to main base
+        for x in 145..=150 {
+            for y in 129..=135 {
+                array[[y, x]] = 0;
+            }
+        }
+
+        let mut pf = jps_pf(array);
+        let path = jps_test(&mut pf, &source, &target);
+        assert_eq!(None, path);
         // Run bench
         b.iter(|| jps_test(&mut pf, &source, &target));
     }
