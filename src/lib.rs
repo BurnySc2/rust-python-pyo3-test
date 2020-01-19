@@ -19,31 +19,28 @@ use pyo3::wrap_pyfunction;
 use pyo3::PyObjectProtocol;
 // https://github.com/PyO3/pyo3
 
-// import inspect
-// print(inspect.signature(my_library.Point))
-
 #[pyclass]
 #[derive(Copy, Clone, Debug)]
-pub struct Point {
+struct Point {
     // For the .x and .y attributes to be accessable in python, it requires these macros
-    //    #[pyo3(get, set)]
+    #[pyo3(get, set)]
     x: f64,
-    //    #[pyo3(get, set)]
+    #[pyo3(get, set)]
     y: f64,
 }
 
 #[pymethods]
 impl Point {
-        #[new]
-        fn new(obj: &PyRawObject, x_: f64, y_: f64) {
-            obj.init(Point { x: x_, y: y_ })
-        }
-//        fn distance_to(&self, other: &Point) -> f64 {
-//            ((self.x - other.x).powi(2) + (self.y - other.y).powi(2)).sqrt()
-//        }
-//        fn distance_to_squared(&self, other: &Point) -> f64 {
-//            (self.x - other.x).powi(2) + (self.y - other.y).powi(2)
-//        }
+    #[new]
+    fn new(obj: &PyRawObject, x_: f64, y_: f64) {
+        obj.init(Point { x: x_, y: y_ })
+    }
+    fn distance_to(&self, other: &Point) -> f64 {
+        ((self.x - other.x).powi(2) + (self.y - other.y).powi(2)).sqrt()
+    }
+    fn distance_to_squared(&self, other: &Point) -> f64 {
+        (self.x - other.x).powi(2) + (self.y - other.y).powi(2)
+    }
 }
 //
 ///// Implements the repr function for Point class: https://pyo3.rs/v0.8.4/class.html#string-conversions
@@ -77,47 +74,47 @@ impl<'source> FromPyObject<'source> for Point {
 //// The name of the class can be changed here, e.g. 'name=MyPoints' and will then be available through my_library.MyPoints instead
 #[pyclass(name=PointCollection)]
 pub struct PointCollection {
-    //    #[pyo3(get)]
+    #[pyo3(get, set)]
     points: Vec<Point>,
 }
 
 #[pymethods]
 impl PointCollection {
-    //    #[new]
-    //    fn new(obj: &PyRawObject, _points: Vec<&Point>) {
-    //        let new_vec: Vec<Point> = _points.into_iter().copied().collect();
-    //        obj.init(PointCollection { points: new_vec })
-    //    }
-    //
-    //    fn len(&self) -> PyResult<usize> {
-    //        Ok(self.points.len())
-    //    }
-    //
-    //    fn append(&mut self, _point: Point) {
-    //        self.points.push(_point);
-    //    }
-    //
-    //    fn print(&self) {
-    //        for i in self.points.clone() {
-    //            println!("{:?}", i);
-    //        }
-    //    }
-    //
-    //    fn closest_point(&self, other: &Point) -> Point {
-    //        // TODO raise error when list of points is empty
-    //        assert!(!self.points.is_empty());
-    //        let mut iterable = self.points.clone().into_iter();
-    //        let mut closest = iterable.next().unwrap();
-    //        let mut distance_sq_closest = closest.distance_to_squared(other);
-    //        for p in iterable {
-    //            let p_distance_sq = p.distance_to_squared(other);
-    //            if p_distance_sq < distance_sq_closest {
-    //                closest = p;
-    //                distance_sq_closest = p_distance_sq;
-    //            }
-    //        }
-    //        closest
-    //    }
+    #[new]
+    fn new(obj: &PyRawObject, _points: Vec<&Point>) {
+        let new_vec: Vec<Point> = _points.into_iter().copied().collect();
+        obj.init(PointCollection { points: new_vec })
+    }
+
+    fn len(&self) -> PyResult<usize> {
+        Ok(self.points.len())
+    }
+
+    fn append(&mut self, _point: Point) {
+        self.points.push(_point);
+    }
+
+    fn print(&self) {
+        for i in self.points.clone() {
+            println!("{:?}", i);
+        }
+    }
+
+    fn closest_point(&self, other: &Point) -> Point {
+        // TODO raise error when list of points is empty
+        assert!(!self.points.is_empty());
+        let mut iterable = self.points.clone().into_iter();
+        let mut closest = iterable.next().unwrap();
+        let mut distance_sq_closest = closest.distance_to_squared(other);
+        for p in iterable {
+            let p_distance_sq = p.distance_to_squared(other);
+            if p_distance_sq < distance_sq_closest {
+                closest = p;
+                distance_sq_closest = p_distance_sq;
+            }
+        }
+        closest
+    }
 }
 
 use ndarray::{ArrayD, ArrayViewD, ArrayViewMutD};
@@ -196,8 +193,8 @@ fn my_library(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Point>()?;
     m.add_class::<PointCollection>()?;
 
-    //    m.add_class::<pathfinding_test::jps::Point2d>()?;
-    //    m.add_class::<pathfinding_test::jps::PathFinder>()?;
+    m.add_class::<pathfinding_test::jps::Point2d>()?;
+    m.add_class::<pathfinding_test::jps::PathFinder>()?;
 
     Ok(())
 }
