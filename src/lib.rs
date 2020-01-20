@@ -23,18 +23,18 @@ use pyo3::PyObjectProtocol;
 #[derive(Copy, Clone, Debug)]
 struct Point {
     // For the .x and .y attributes to be accessable in python, it requires these macros
-    #[pyo3(get, set)]
+//    #[pyo3(get, set)]
     x: f64,
-    #[pyo3(get, set)]
+//    #[pyo3(get, set)]
     y: f64,
 }
 
-#[pymethods]
+//#[pymethods]
 impl Point {
-    #[new]
-    fn new(obj: &PyRawObject, x_: f64, y_: f64) {
-        obj.init(Point { x: x_, y: y_ })
-    }
+//    #[new]
+//    fn new(obj: &PyRawObject, x_: f64, y_: f64) {
+//        obj.init(Point { x: x_, y: y_ })
+//    }
     fn distance_to(&self, other: &Point) -> f64 {
         ((self.x - other.x).powi(2) + (self.y - other.y).powi(2)).sqrt()
     }
@@ -74,17 +74,17 @@ impl<'source> FromPyObject<'source> for Point {
 //// The name of the class can be changed here, e.g. 'name=MyPoints' and will then be available through my_library.MyPoints instead
 #[pyclass(name=PointCollection)]
 pub struct PointCollection {
-    #[pyo3(get, set)]
+//    #[pyo3(get, set)]
     points: Vec<Point>,
 }
 
-#[pymethods]
+//#[pymethods]
 impl PointCollection {
-    #[new]
-    fn new(obj: &PyRawObject, _points: Vec<&Point>) {
-        let new_vec: Vec<Point> = _points.into_iter().copied().collect();
-        obj.init(PointCollection { points: new_vec })
-    }
+//    #[new]
+//    fn new(obj: &PyRawObject, _points: Vec<&Point>) {
+//        let new_vec: Vec<Point> = _points.into_iter().copied().collect();
+//        obj.init(PointCollection { points: new_vec })
+//    }
 
     fn len(&self) -> PyResult<usize> {
         Ok(self.points.len())

@@ -23,7 +23,7 @@ def pathfinding_tests():
     #         random_bot_object = i
     #         break
 
-    point_test = my_library.Point2d(3, 4)
+    point_test = my_library.Point3d(3, 4, 5)
     print(point_test)
     pass
 
