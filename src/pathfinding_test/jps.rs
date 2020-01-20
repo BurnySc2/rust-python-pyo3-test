@@ -479,7 +479,7 @@ impl PathFinder {
         source: &Point2d,
         target: &Point2d,
         construct_full_path: bool,
-    ) -> Option<Vec<Point2d>> {
+    ) -> Vec<Point2d> {
         if construct_full_path {
             let mut path: Vec<Point2d> = Vec::with_capacity(100);
             let mut pos = *target;
@@ -496,7 +496,7 @@ impl PathFinder {
             }
             path.push(*source);
             path.reverse();
-            Some(path)
+            path
         } else {
             let mut path: Vec<Point2d> = Vec::with_capacity(20);
             path.push(*target);
@@ -506,24 +506,24 @@ impl PathFinder {
                 path.push(*pos);
             }
             path.reverse();
-            Some(path)
+            path
         }
     }
 
-    fn find_path(&mut self, source: &Point2d, target: &Point2d) -> Option<Vec<Point2d>> {
+    fn find_path(&mut self, source: &Point2d, target: &Point2d) -> Vec<Point2d> {
         if self.grid[[source.y, source.x]] == 0 {
             println!(
                 "Returning early, source position is not in grid: {:?}",
                 source
             );
-            return None;
+            return vec![];
         }
         if self.grid[[target.y, target.x]] == 0 {
             println!(
                 "Returning early, target position is not in grid: {:?}",
                 target
             );
-            return None;
+            return vec![];
         }
 
         let heuristic: fn(&Point2d, &Point2d) -> f32;
@@ -569,7 +569,7 @@ impl PathFinder {
             self.traverse(&start, direction, &target, cost_to_start, heuristic);
         }
 
-        None
+        vec![]
     }
 }
 
@@ -582,7 +582,7 @@ pub fn jps_pf(grid: Array2<u8>) -> PathFinder {
     }
 }
 
-pub fn jps_test(pf: &mut PathFinder, source: &Point2d, target: &Point2d) -> Option<Vec<Point2d>> {
+pub fn jps_test(pf: &mut PathFinder, source: &Point2d, target: &Point2d) -> Vec<Point2d> {
     pf.find_path(&source, &target)
 }
 
@@ -687,8 +687,7 @@ mod tests {
         //                let target = Point2d { x: 150, y: 129 };
         let mut pf = jps_pf(array);
         let path = jps_test(&mut pf, &source, &target);
-        assert_ne!(None, path);
-        assert!(path.unwrap().len() > 0);
+        assert_ne!(0, path.len());
         // Run bench
         b.iter(|| jps_test(&mut pf, &source, &target));
     }
@@ -711,7 +710,7 @@ mod tests {
 
         let mut pf = jps_pf(array);
         let path = jps_test(&mut pf, &source, &target);
-        assert_eq!(None, path);
+        assert_eq!(0, path.len());
         // Run bench
         b.iter(|| jps_test(&mut pf, &source, &target));
     }

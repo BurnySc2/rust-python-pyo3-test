@@ -43,7 +43,7 @@ fn main() {
     //            let grid = pathfinding_test::jps::grid_setup(15);
     //            let path = pathfinding_test::jps::jps_test(grid, source, target);
     //            println!("Path: {:?}", path);
-    if path.is_some() {
-        write_path_to_file(path.unwrap());
+    if path.len() > 0 {
+        write_path_to_file(path);
     }
 }
