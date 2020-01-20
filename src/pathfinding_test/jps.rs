@@ -19,27 +19,27 @@ use pyo3::types::PyAny;
 use pyo3::wrap_pyfunction;
 use pyo3::PyObjectProtocol;
 
-#[pyclass]
-struct Point3d {
-    x: i32,
-    y: i32,
-    z: i32,
-}
-
-#[pymethods]
-impl Point3d {
-    #[new]
-    fn new(obj: &PyRawObject, x: i32, y: i32, z:i32) {
-        obj.init(Point3d { x, y, z })
-    }
-}
-
-#[pyproto]
-impl PyObjectProtocol for Point3d {
-    fn __repr__(&self) -> PyResult<String> {
-        Ok(format!("Point3d ( x: {:?}, y: {:?}, z: {:?} )", self.x, self.y, self.z))
-    }
-}
+//#[pyclass]
+//struct Point3d {
+//    x: i32,
+//    y: i32,
+//    z: i32,
+//}
+//
+//#[pymethods]
+//impl Point3d {
+//    #[new]
+//    fn new(obj: &PyRawObject, x: i32, y: i32, z:i32) {
+//        obj.init(Point3d { x, y, z })
+//    }
+//}
+//
+//#[pyproto]
+//impl PyObjectProtocol for Point3d {
+//    fn __repr__(&self) -> PyResult<String> {
+//        Ok(format!("Point3d ( x: {:?}, y: {:?}, z: {:?} )", self.x, self.y, self.z))
+//    }
+//}
 
 #[allow(dead_code)]
 pub fn absdiff<T>(x: T, y: T) -> T
