@@ -5,6 +5,7 @@ import pickle
 
 
 import numpy as np
+
 np.set_printoptions(threshold=sys.maxsize)
 import matplotlib.pyplot as plt
 
@@ -14,6 +15,7 @@ from sc2.game_data import GameData
 from sc2.game_info import GameInfo
 from sc2.game_state import GameState
 from sc2.bot_ai import BotAI
+
 
 def get_map_specific_bots() -> Iterable[BotAI]:
     folder = os.path.dirname(__file__)
@@ -34,6 +36,8 @@ def get_map_specific_bots() -> Iterable[BotAI]:
         bot._prepare_step(state=game_state, proto_game_info=raw_game_info)
 
         yield bot
+
+
 # Global bot object that is used in TestClass.test_position_*
 bot_object_generator = get_map_specific_bots()
 # random_bot_object: BotAI = next(bot_object_generator)
@@ -41,6 +45,7 @@ bot_object_generator = get_map_specific_bots()
 # print(random_bot_object.game_info.start_locations)
 # print(random_bot_object.townhalls[0].position)
 # print(random_bot_object.enemy_start_locations)
+
 
 def main():
     # start = (90, 100)
@@ -72,7 +77,11 @@ def main():
 
 
 def plot(
-    grid, route: List[Tuple[int, int]] = None, start: Tuple[int, int] = None, goal: Tuple[int, int] = None, waypoints=None
+    grid,
+    route: List[Tuple[int, int]] = None,
+    start: Tuple[int, int] = None,
+    goal: Tuple[int, int] = None,
+    waypoints=None,
 ):
     # extract x and y coordinates from route list
     x_coords = []

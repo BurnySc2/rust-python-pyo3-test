@@ -3,7 +3,7 @@
 
 /* Introduction / Helper websites:
 https://pyo3.rs/
-https://docs.rs/pyo3/0.8.4/pyo3/index.html
+https://docs.rs/pyo3
 */
 
 #![feature(cell_update)]
@@ -14,7 +14,6 @@ extern crate test;
 mod pathfinding_test;
 
 use pyo3::prelude::*;
-use pyo3::types::PyAny;
 use pyo3::wrap_pyfunction;
 use pyo3::PyObjectProtocol;
 // https://github.com/PyO3/pyo3
@@ -23,18 +22,18 @@ use pyo3::PyObjectProtocol;
 #[derive(Copy, Clone, Debug)]
 struct Point {
     // For the .x and .y attributes to be accessable in python, it requires these macros
-//    #[pyo3(get, set)]
+    #[pyo3(get, set)]
     x: f64,
-//    #[pyo3(get, set)]
+    #[pyo3(get, set)]
     y: f64,
 }
 
-//#[pymethods]
+#[pymethods]
 impl Point {
-//    #[new]
-//    fn new(obj: &PyRawObject, x_: f64, y_: f64) {
-//        obj.init(Point { x: x_, y: y_ })
-//    }
+    #[new]
+    fn new(x_: f64, y_: f64) -> Self {
+        Point { x: x_, y: y_ }
+    }
     fn distance_to(&self, other: &Point) -> f64 {
         ((self.x - other.x).powi(2) + (self.y - other.y).powi(2)).sqrt()
     }
@@ -42,64 +41,49 @@ impl Point {
         (self.x - other.x).powi(2) + (self.y - other.y).powi(2)
     }
 }
-//
-///// Implements the repr function for Point class: https://pyo3.rs/v0.8.4/class.html#string-conversions
+
 #[pyproto]
 impl PyObjectProtocol for Point {
     fn __repr__(&self) -> PyResult<String> {
-        Ok(format!("Point ( x: {:?}, y: {:?} )", self.x, self.y))
+        Ok(format!("RustPoint(x: {}, y: {})", self.x, self.y))
     }
-}
-//
-//// Necessary function implementation to convert a Point from python to rust
-//class Point:
-//    def __init__(self, x, y):
-//        self.x = x
-//        self.y = y
-//# This class can now be used in rust as Point
-//
-impl<'source> FromPyObject<'source> for Point {
-    fn extract(ob: &'source PyAny) -> PyResult<Point> {
-        unsafe {
-            let py = Python::assume_gil_acquired();
-            let obj = ob.to_object(py);
-            Ok(Self {
-                x: obj.getattr(py, "x")?.extract(py)?,
-                y: obj.getattr(py, "y")?.extract(py)?,
-            })
-        }
+    fn __str__(&self) -> PyResult<String> {
+        Ok(format!("RustPoint(x: {}, y: {})", self.x, self.y))
     }
 }
 
-//// The name of the class can be changed here, e.g. 'name=MyPoints' and will then be available through my_library.MyPoints instead
+/// The name of the class can be changed here, e.g. 'name=MyPoints' and will then be available through my_library.MyPoints instead
 #[pyclass(name=PointCollection)]
 pub struct PointCollection {
-//    #[pyo3(get, set)]
+    #[pyo3(get, set)]
     points: Vec<Point>,
 }
 
-//#[pymethods]
+#[pymethods]
 impl PointCollection {
-//    #[new]
-//    fn new(obj: &PyRawObject, _points: Vec<&Point>) {
-//        let new_vec: Vec<Point> = _points.into_iter().copied().collect();
-//        obj.init(PointCollection { points: new_vec })
-//    }
+    #[new]
+    fn new(points: Vec<Point>) -> Self {
+        PointCollection { points }
+    }
 
+    #[allow(dead_code)]
     fn len(&self) -> PyResult<usize> {
         Ok(self.points.len())
     }
 
-    fn append(&mut self, _point: Point) {
-        self.points.push(_point);
+    #[allow(dead_code)]
+    fn append(&mut self, point: Point) {
+        self.points.push(point);
     }
 
+    #[allow(dead_code)]
     fn print(&self) {
         for i in self.points.clone() {
             println!("{:?}", i);
         }
     }
 
+    #[allow(dead_code)]
     fn closest_point(&self, other: &Point) -> Point {
         // TODO raise error when list of points is empty
         assert!(!self.points.is_empty());
@@ -117,34 +101,50 @@ impl PointCollection {
     }
 }
 
+// #[pyproto]
+// impl PyObjectProtocol for PointCollection {
+//     fn __repr__(&self) -> PyResult<String> {
+//         Ok(format!("PointCollection({})", self.points)
+//     }
+//     fn __str__(&self) -> PyResult<String> {
+//         Ok(format!("RustPoint(x: {}, y: {})", self.x, self.y))
+//     }
+// }
+
+#[allow(unused_imports)]
 use ndarray::{ArrayD, ArrayViewD, ArrayViewMutD};
-use numpy::{IntoPyArray, PyArrayDyn};
+use numpy::{IntoPyArray, PyArrayDyn, PyReadonlyArrayDyn};
+use pyo3::prelude::{pymodule, PyModule, PyResult, Python};
 // Numpy examples
 
 // immutable example
-fn mult_with_return(a: f64, x: ArrayViewD<f64>) -> ArrayD<f64> {
-    &x * a
-    // Also works:
-    // a * &x
+fn mult_with_return_rust(a: f64, x: ArrayViewD<'_, f64>, y: ArrayViewD<'_, f64>) -> ArrayD<f64> {
+    a * &x + &y
+}
+
+// wrapper of `mult_with_return_rust`
+#[pyfunction]
+fn mult_with_return<'py>(
+    py: Python<'py>,
+    a: f64,
+    x: PyReadonlyArrayDyn<f64>,
+    y: PyReadonlyArrayDyn<f64>,
+) -> &'py PyArrayDyn<f64> {
+    let x = x.as_array();
+    let y = y.as_array();
+    mult_with_return_rust(a, x, y).into_pyarray(py)
 }
 
 // mutable example (no return)
-fn mult_mutable(a: f64, mut x: ArrayViewMutD<f64>) {
+fn mult_without_return_rust(a: f64, mut x: ArrayViewMutD<'_, f64>) {
     x *= a;
 }
 
-// wrapper of `axpy`
+// wrapper of `mult_without_return_rust`
 #[pyfunction]
-fn mult_with_return_py(py: Python, a: f64, x: &PyArrayDyn<f64>) -> Py<PyArrayDyn<f64>> {
-    let x = x.as_array();
-    mult_with_return(a, x).into_pyarray(py).to_owned()
-}
-
-// wrapper of `mult`
-#[pyfunction]
-fn mult_mutable_py(_py: Python, a: f64, x: &PyArrayDyn<f64>) -> PyResult<()> {
-    let x = x.as_array_mut();
-    mult_mutable(a, x);
+fn mult_without_return(_py: Python<'_>, a: f64, x: &PyArrayDyn<f64>) -> PyResult<()> {
+    let x = unsafe { x.as_array_mut() };
+    mult_without_return_rust(a, x);
     Ok(())
 }
 
@@ -186,15 +186,13 @@ fn my_library(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(sum_as_string))?;
     m.add_wrapped(wrap_pyfunction!(factorial))?;
     m.add_wrapped(wrap_pyfunction!(factorial_iter))?;
-    m.add_wrapped(wrap_pyfunction!(mult_with_return_py))?;
-    m.add_wrapped(wrap_pyfunction!(mult_mutable_py))?;
+
+    m.add_wrapped(wrap_pyfunction!(mult_without_return))?;
+    m.add_wrapped(wrap_pyfunction!(mult_with_return))?;
 
     // Classes to be exported
     m.add_class::<Point>()?;
     m.add_class::<PointCollection>()?;
-
-    m.add_class::<pathfinding_test::jps::Point2d>()?;
-    m.add_class::<pathfinding_test::jps::PathFinder>()?;
 
     Ok(())
 }
@@ -212,5 +210,13 @@ mod tests {
         assert_eq!(6, factorial(3));
         assert_eq!(24, factorial(4));
         assert_eq!(24, factorial_iter(4));
+    }
+
+    #[bench]
+    fn bench_factorial_function(b: &mut Bencher) {
+        b.iter(|| factorial(2));
+        b.iter(|| factorial(3));
+        b.iter(|| factorial(4));
+        b.iter(|| factorial_iter(4));
     }
 }
