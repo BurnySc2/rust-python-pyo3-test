@@ -65,11 +65,9 @@ jobs:
 
     - name: Test
       run: cargo test --verbose --release
-      if: matrix.os == 'windows-latest'
 
     - name: Bench
       run: cargo bench
-      if: matrix.os == 'windows-latest'
 
     - name: Build
       run: cargo build --verbose --release
