@@ -18,7 +18,7 @@ use pyo3::wrap_pyfunction;
 use pyo3::PyObjectProtocol;
 // https://github.com/PyO3/pyo3
 
-#[pyclass]
+#[pyclass(name = "Point")]
 #[derive(Copy, Clone, Debug)]
 struct Point {
     // For the .x and .y attributes to be accessable in python, it requires these macros
@@ -52,8 +52,8 @@ impl PyObjectProtocol for Point {
     }
 }
 
-/// The name of the class can be changed here, e.g. 'name=MyPoints' and will then be available through my_library.MyPoints instead
-#[pyclass(name=PointCollection)]
+/// The name of the class can be changed here, e.g. 'name=PointCollection' and will then be available through my_library.PointCollection instead
+#[pyclass(name = "PointCollection")]
 pub struct PointCollection {
     #[pyo3(get, set)]
     points: Vec<Point>,
@@ -101,15 +101,15 @@ impl PointCollection {
     }
 }
 
-// #[pyproto]
-// impl PyObjectProtocol for PointCollection {
-//     fn __repr__(&self) -> PyResult<String> {
-//         Ok(format!("PointCollection({})", self.points)
-//     }
-//     fn __str__(&self) -> PyResult<String> {
-//         Ok(format!("RustPoint(x: {}, y: {})", self.x, self.y))
-//     }
-// }
+#[pyproto]
+impl PyObjectProtocol for PointCollection {
+    fn __repr__(&self) -> PyResult<String> {
+        Ok(format!("PointCollection({:?})", self.points))
+    }
+    fn __str__(&self) -> PyResult<String> {
+        Ok(format!("PointCollection({:?})", self.points))
+    }
+}
 
 #[allow(unused_imports)]
 use ndarray::{ArrayD, ArrayViewD, ArrayViewMutD};

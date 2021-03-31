@@ -10,10 +10,11 @@ crate-type = ["cdylib"]
 
 [dependencies]
 #cute = "0.3"
-numpy = "0.11.0"
+numpy = "0.13.1"
 ndarray = "0.13.1"
 #pathfinding = "2.0"
 #indexmap = "1.3"
 #pretty_assertions = "0.6.1"
 #fnv = "1.0.6"
-pyo3 = {version="=0.11.1", features = ["extension-module"] }
+
+pyo3 = {version="=0.13.2", features = ["extension-module"] }
