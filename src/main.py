@@ -82,7 +82,7 @@ def basic_tests():
     # closest_point = my_library.Point2Collection([]).closest_point(p4)
     print(f"Closest point: {closest_point}")
 
-    print(type(ps))
+    print(ps, type(ps))
     for p in ps.points:
         print(p, type(p))
 

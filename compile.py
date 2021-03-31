@@ -1,26 +1,29 @@
 import subprocess
 import os
 import platform
+import sys
 
-# print(platform.system())
+process = subprocess.Popen(["cargo", "build", "--release"])
+process.wait()
 
-p = subprocess.Popen(["cargo", "build", "--release"])
-p.wait()
-
-if p.returncode == 0:
+if process.returncode == 0:
     from pathlib import Path
     import shutil
 
     if platform.system() == "Linux":
         output_path = Path("target") / "release" / "libmy_library.so"
-        src_path = Path("src") / "my_library.so"
-        if src_path.exists():
-            os.remove(src_path)
-        shutil.copy(output_path, src_path)
+        target_path = Path("src") / "my_library.so"
+        if target_path.exists():
+            os.remove(target_path)
+        shutil.copy(output_path, target_path)
 
-    else:
+    elif platform.system() == "Windows":
+        major = sys.version_info.major
+        minor = sys.version_info.minor
         output_path = Path("target") / "release" / "my_library.dll"
-        src_path = Path("src") / "my_library.cp37-win_amd64.pyd"
-        if src_path.exists():
-            os.remove(src_path)
-        shutil.copy(output_path, src_path)
+        target_path = Path("src") / f"my_library.cp{major}{minor}-win_amd64.pyd"
+        if target_path.exists():
+            os.remove(target_path)
+        shutil.copy(output_path, target_path)
+
+    # TODO MacOS

@@ -74,6 +74,19 @@ jobs:
     - name: Build
       run: cargo build --verbose --release
 
+    - name: Run python script with library (linux)
+      run: |
+        python compile.py
+        python main.py
+      if: matrix.os == 'ubuntu-latest'
+
+    - name: Run python script with library (windows)
+      run: |
+        dir target/release
+        python compile.py
+        python main.py
+      if: matrix.os == 'windows-latest'
+
     - name: Create artifact directory
       run: mkdir artifacts
 
