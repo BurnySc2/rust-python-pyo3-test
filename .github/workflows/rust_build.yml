@@ -37,8 +37,8 @@ jobs:
     - name: Install latest nightly
       uses: actions-rs/toolchain@v1
       with:
-        # rustup override set nightly-2020-07-01
-        toolchain: nightly-2020-07-01
+        # rustup override set nightly-YYYY-MM-DD
+        toolchain: nightly-2021-03-16
         override: true
 
     - name: Set up Python ${{ matrix.python-version }}
