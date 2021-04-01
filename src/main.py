@@ -11,24 +11,35 @@ class Point2:
 
 def main():
     basic_tests()
-    # pathfinding_tests()
+    pathfinding_tests()
     pass
 
 
-# def pathfinding_tests():
-#     from plot_automaton import get_map_specific_bots
-#     from sc2.bot_ai import BotAI
-#
-#     # bot_object_generator = get_map_specific_bots()
-#     # for i in bot_object_generator:
-#     #     print(i.game_info.map_name)
-#     #     if "automaton" in i.game_info.map_name.lower():
-#     #         random_bot_object = i
-#     #         break
-#
-#     point_test = my_library.Point3d(3, 4, 5)
-#     print(point_test)
-#     pass
+def pathfinding_tests():
+    from plot_automaton import get_map_specific_bots
+    from sc2.bot_ai import BotAI
+
+    bot_object_generator = get_map_specific_bots()
+    for i in bot_object_generator:
+        print(i.game_info.map_name)
+        if "automaton" in i.game_info.map_name.lower():
+            random_bot_object = i
+            break
+
+    data = random_bot_object.game_info.pathing_grid.data_numpy
+    data.ravel()
+    # data.flat
+    # data.flatten()
+
+
+    width = 184
+    height = 192
+
+
+
+    # point_test = my_library.Point3d(3, 4, 5)
+    # print(point_test)
+    pass
 
 
 def basic_tests():
@@ -50,9 +61,9 @@ def basic_tests():
     string_output = my_library.sum_as_string(7, 6)
     assert string_output == "13"
 
-    p1 = my_library.Point(0, 0)
+    p1 = my_library.RustPoint2(0, 0)
     print(p1)
-    p2 = my_library.Point(3.0, 4.0)
+    p2 = my_library.RustPoint2(3, 4)
     print(p2)
     dist = p1.distance_to(p2)
     print(dist)
@@ -62,7 +73,7 @@ def basic_tests():
     ps = my_library.PointCollection([p1, p2])
     print(f"Amount of points in the list: {ps.len()}")
     # Add a Python Point2 point to the list of points
-    p3 = my_library.Point(7, 8)
+    p3 = my_library.RustPoint2(7, 8)
     ps.append(p3)
     ps.append(p1)
     print(f"Amount of points in the list: {ps.len()}")
@@ -76,7 +87,7 @@ def basic_tests():
     print(f"The points in the list:")
     ps.print()
 
-    p4 = my_library.Point(9, 10)
+    p4 = my_library.RustPoint2(9, 10)
     closest_point = ps.closest_point(p4)
     # This should raise a proper error
     # closest_point = my_library.Point2Collection([]).closest_point(p4)

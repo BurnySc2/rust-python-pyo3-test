@@ -15,6 +15,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf1de2fe8c75bc145a2f577add951f8134889b4795d47466a54a5c846d691693"
 
 [[package]]
+name = "blitz-path"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5f689db21e30be375a9a9076ab6234b4321bcb2f8fbfffa465d6c294e8ec9e62"
+dependencies = [
+ "movingai",
+]
+
+[[package]]
 name = "cfg-if"
 version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -132,9 +141,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "movingai"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "43b3df64047ba955c4c4166fac57ca1e736d1a57eeb4e3448b160cdb41eaf1c7"
+
+[[package]]
 name = "my_library"
 version = "0.1.0"
 dependencies = [
+ "blitz-path",
+ "movingai",
  "ndarray",
  "numpy",
  "pyo3",

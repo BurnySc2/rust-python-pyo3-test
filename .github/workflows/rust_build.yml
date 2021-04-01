@@ -1,17 +1,6 @@
 name: RustBuild
 on: [push]
 
-#env:
-#  # Could, potentially automatically parse
-#  # the bin name, but let's do it automatically for now.
-#  RELEASE_LIB: my_library
-#
-#  # Space separated paths to include in the archive.
-#  # Start relative paths with a dot if you don't want
-#  # paths to be preserved. Use "/" as a delimiter.
-#  RELEASE_ADDS: README.md LICENSE
-
-
 jobs:
   build:
     name: Build release
@@ -21,7 +10,6 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-#        os: [ubuntu-latest, windows-latest, macOS-latest]
         rust: [nightly]
         python-version: [3.7, 3.8, 3.9]
 
@@ -74,12 +62,10 @@ jobs:
         cargo clippy
 
     - name: Test
-      run: cargo test --verbose --release
-      if: matrix.os == 'windows-latest'
+      run: cargo test --verbose --release --no-default-features
 
     - name: Bench
-      run: cargo bench
-      if: matrix.os == 'windows-latest'
+      run: cargo bench --no-default-features
 
     - name: Build
       run: cargo build --verbose --release

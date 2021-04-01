@@ -11,44 +11,84 @@ https://docs.rs/pyo3
 #![feature(test)]
 extern crate test;
 
-mod pathfinding_test;
-
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 use pyo3::PyObjectProtocol;
 // https://github.com/PyO3/pyo3
 
-#[pyclass(name = "Point")]
+use blitz_path::a_star_path;
+use blitz_path::jps_path;
+use movingai::Coords2D;
+use movingai::MovingAiMap;
+
+#[pyclass(name = "RustPoint2")]
 #[derive(Copy, Clone, Debug)]
-struct Point {
-    // For the .x and .y attributes to be accessable in python, it requires these macros
+pub struct RustPoint2 {
     #[pyo3(get, set)]
-    x: f64,
+    x: usize,
     #[pyo3(get, set)]
-    y: f64,
+    y: usize,
 }
 
 #[pymethods]
-impl Point {
+impl RustPoint2 {
     #[new]
-    fn new(x_: f64, y_: f64) -> Self {
-        Point { x: x_, y: y_ }
+    fn new(x_: usize, y_: usize) -> Self {
+        RustPoint2 { x: x_, y: y_ }
     }
-    fn distance_to(&self, other: &Point) -> f64 {
-        ((self.x - other.x).powi(2) + (self.y - other.y).powi(2)).sqrt()
+
+    fn to_coords_2d(&self) -> Coords2D {
+        (self.x, self.y)
     }
-    fn distance_to_squared(&self, other: &Point) -> f64 {
-        (self.x - other.x).powi(2) + (self.y - other.y).powi(2)
+
+    fn distance_to(&self, other: &RustPoint2) -> f64 {
+        (((self.x - other.x) as f64).powi(2) + ((self.y - other.y) as f64).powi(2)).sqrt()
+    }
+
+    fn distance_to_squared(&self, other: &RustPoint2) -> f64 {
+        ((self.x - other.x) as f64).powi(2) + ((self.y - other.y) as f64).powi(2)
     }
 }
 
 #[pyproto]
-impl PyObjectProtocol for Point {
+impl PyObjectProtocol for RustPoint2 {
     fn __repr__(&self) -> PyResult<String> {
-        Ok(format!("RustPoint(x: {}, y: {})", self.x, self.y))
+        Ok(format!("RustPoint2(x: {}, y: {})", self.x, self.y))
     }
     fn __str__(&self) -> PyResult<String> {
-        Ok(format!("RustPoint(x: {}, y: {})", self.x, self.y))
+        Ok(format!("RustPoint2(x: {}, y: {})", self.x, self.y))
+    }
+}
+
+#[pyclass(name = "RustPixelMap")]
+#[derive(Debug)]
+pub struct RustPixelMap {
+    map: MovingAiMap,
+}
+
+#[pymethods]
+impl RustPixelMap {
+    #[new]
+    fn new(width_: usize, height_: usize, map_: Vec<char>) -> Self {
+        RustPixelMap {
+            map: MovingAiMap::new(String::from("test"), width_, height_, map_),
+        }
+    }
+
+    fn jps_path(&self, start_pos: RustPoint2, goal_pos: RustPoint2) -> Vec<Coords2D> {
+        if let Some(path) = jps_path(&self.map, start_pos.to_coords_2d(), goal_pos.to_coords_2d()) {
+            return path.steps();
+        }
+        vec![]
+    }
+
+    fn astar_path(&self, start_pos: RustPoint2, goal_pos: RustPoint2) -> Vec<Coords2D> {
+        if let Some(path) =
+            a_star_path(&self.map, start_pos.to_coords_2d(), goal_pos.to_coords_2d())
+        {
+            return path.steps();
+        }
+        vec![]
     }
 }
 
@@ -56,13 +96,13 @@ impl PyObjectProtocol for Point {
 #[pyclass(name = "PointCollection")]
 pub struct PointCollection {
     #[pyo3(get, set)]
-    points: Vec<Point>,
+    points: Vec<RustPoint2>,
 }
 
 #[pymethods]
 impl PointCollection {
     #[new]
-    fn new(points: Vec<Point>) -> Self {
+    fn new(points: Vec<RustPoint2>) -> Self {
         PointCollection { points }
     }
 
@@ -72,7 +112,7 @@ impl PointCollection {
     }
 
     #[allow(dead_code)]
-    fn append(&mut self, point: Point) {
+    fn append(&mut self, point: RustPoint2) {
         self.points.push(point);
     }
 
@@ -84,7 +124,7 @@ impl PointCollection {
     }
 
     #[allow(dead_code)]
-    fn closest_point(&self, other: &Point) -> Point {
+    fn closest_point(&self, other: &RustPoint2) -> RustPoint2 {
         // TODO raise error when list of points is empty
         assert!(!self.points.is_empty());
         let mut iterable = self.points.clone().into_iter();
@@ -148,7 +188,6 @@ fn mult_without_return(_py: Python<'_>, a: f64, x: &PyArrayDyn<f64>) -> PyResult
     Ok(())
 }
 
-//mod base;
 // Simple examples
 
 /// Formats the sum of two numbers as string
@@ -191,7 +230,9 @@ fn my_library(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(mult_with_return))?;
 
     // Classes to be exported
-    m.add_class::<Point>()?;
+    // Linking error on linux if you import a local module/crate
+    m.add_class::<RustPoint2>()?;
+    m.add_class::<RustPixelMap>()?;
     m.add_class::<PointCollection>()?;
 
     Ok(())

@@ -3,6 +3,4 @@
 #![feature(test)]
 extern crate test;
 
-pub mod pathfinding_test;
-
 fn main() {}
