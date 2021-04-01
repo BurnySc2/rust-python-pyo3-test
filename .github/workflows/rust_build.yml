@@ -58,6 +58,11 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
+    - name: Install python requirements
+      run: |
+        pip install poetry
+        poetry install
+
     - name: Run cargo check
       uses: actions-rs/cargo@v1
       with:
@@ -79,22 +84,17 @@ jobs:
     - name: Build
       run: cargo build --verbose --release
 
-    - name: Install python requirements
-      run: |
-        pip install poetry
-        poetry install
-
     - name: Run python script with library (linux)
       run: |
-        python compile.py
-        python src/main.py
+        poetry run python compile.py
+        poetry run python src/main.py
       if: matrix.os == 'ubuntu-latest'
 
     - name: Run python script with library (windows)
       run: |
         dir target/release
-        python compile.py
-        python src/main.py
+        poetry run python compile.py
+        poetry run python src/main.py
       if: matrix.os == 'windows-latest'
 
     - name: Create artifact directory
