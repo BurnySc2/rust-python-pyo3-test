@@ -23,7 +23,7 @@ jobs:
         os: [ubuntu-latest, windows-latest]
 #        os: [ubuntu-latest, windows-latest, macOS-latest]
         rust: [nightly]
-        python-version: [3.6, 3.7, 3.8]
+        python-version: [3.6, 3.7, 3.8, 3.9]
 
     steps:
     # https://github.com/actions-rs/toolchain
@@ -73,6 +73,11 @@ jobs:
 
     - name: Build
       run: cargo build --verbose --release
+
+    - name: Install python requirements
+      run: |
+        pip install poetry
+        poetry install
 
     - name: Run python script with library (linux)
       run: |
