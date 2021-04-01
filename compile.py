@@ -3,6 +3,8 @@ import os
 import platform
 import sys
 
+process = subprocess.Popen(["cargo", "clean"])
+process.wait()
 process = subprocess.Popen(["cargo", "build", "--release"])
 process.wait()
 

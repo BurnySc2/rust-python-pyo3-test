@@ -16,3 +16,11 @@
 
 /target
 #**/*.rs.bk
+
+# Pycharm
+.idea
+
+# Library files
+*.dll
+*.dylib
+*.so
