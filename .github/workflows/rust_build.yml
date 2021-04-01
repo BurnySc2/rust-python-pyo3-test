@@ -53,6 +53,11 @@ jobs:
         toolchain: nightly-2020-07-01
         override: true
 
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python-version }}
+
     - name: Run cargo check
       uses: actions-rs/cargo@v1
       with:
