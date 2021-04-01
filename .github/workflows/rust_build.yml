@@ -62,10 +62,10 @@ jobs:
         cargo clippy
 
     - name: Test
-      run: cargo test --verbose --release --no-default-features
+      run: cargo test --verbose --release --no-default-features --lib
 
     - name: Bench
-      run: cargo bench --no-default-features
+      run: cargo bench --no-default-features --lib
 
     - name: Build
       run: cargo build --verbose --release
