@@ -62,10 +62,12 @@ jobs:
         cargo clippy
 
     - name: Test
-      run: cargo test --verbose --release --no-default-features --lib
+      run: cargo test --verbose --release --no-default-features
+      if: matrix.os == 'windows-latest' || matrix.python-version == '3.8'
 
     - name: Bench
-      run: cargo bench --no-default-features --lib
+      run: cargo bench --no-default-features
+      if: matrix.os == 'windows-latest' || matrix.python-version == '3.8'
 
     - name: Build
       run: cargo build --verbose --release
