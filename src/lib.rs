@@ -5,7 +5,7 @@
 https://pyo3.rs/
 https://docs.rs/pyo3
 */
-
+#![allow(unused_doc_comments)]
 #![feature(cell_update)]
 // Testing and benchmark crate
 #![feature(test)]
@@ -20,7 +20,9 @@ use blitz_path::a_star_path;
 use blitz_path::jps_path;
 use movingai::Coords2D;
 use movingai::MovingAiMap;
+use std::collections::{HashMap, HashSet};
 
+/// Class example
 #[pyclass(name = "RustPoint2")]
 #[derive(Copy, Clone, Debug)]
 pub struct RustPoint2 {
@@ -151,42 +153,131 @@ impl PyObjectProtocol for PointCollection {
     }
 }
 
+/// Primitive function examples
+#[pyfunction]
+fn add_one(_py: Python, value: i128) -> PyResult<i128> {
+    Ok(value + 1)
+}
+
+#[pyfunction]
+fn add_one_and_a_half(_py: Python, value: f64) -> PyResult<f64> {
+    Ok(value + 1.5)
+}
+
+#[pyfunction]
+fn concatenate_string(_py: Python, value: String) -> PyResult<String> {
+    /// Concatenating 2 strings
+    let mut concat = value;
+    concat.push_str(" world!");
+    Ok(concat)
+}
+
+#[pyfunction]
+fn sum_of_list(_py: Python, my_list: Vec<i32>) -> PyResult<i32> {
+    /// Looping over a list and calculating the sum
+    // let sum: i32 = my_list.iter().sum();
+    // let sum: Option<i32> = my_list.iter().reduce(|a, b| &a+&b);
+    let sum: Option<i32> = my_list.into_iter().reduce(|a, b| a + b);
+    if let Some(my_sum) = sum {
+        return Ok(my_sum);
+    }
+    Ok(0)
+}
+
+#[pyfunction]
+fn append_to_list(_py: Python, my_list: &PyList) {
+    /// Mutating a list without return statement
+    my_list.append(420).unwrap();
+}
+
+#[pyfunction]
+fn double_of_list(_py: Python, my_list: Vec<i32>) -> PyResult<Vec<i32>> {
+    /// Returning a new list where each element is doubled
+    let my_list_double = my_list.into_iter().map(|x| &x * 2).collect();
+    Ok(my_list_double)
+}
+
+#[pyfunction]
+fn add_key_to_dict(_py: Python, my_dict: &PyDict) {
+    #[allow(unused_doc_comments)]
+    /// Adding a key
+    my_dict.set_item("test", "hello").unwrap();
+}
+
+#[pyfunction]
+fn change_key_value(_py: Python, my_dict: &PyDict) {
+    /// Change a value in a dict
+    let my_option = my_dict.get_item("hello");
+    if let Some(my_value) = my_option {
+        let value = my_value.extract::<i32>().unwrap();
+        my_dict.set_item("hello", value + 1).unwrap();
+    }
+}
+
+#[pyfunction]
+fn change_key_value_with_return(
+    _py: Python,
+    mut my_dict: HashMap<String, i32>,
+) -> HashMap<String, i32> {
+    /// Change a value in a dict, then return it
+    if let Some(my_value) = my_dict.get_mut("hello") {
+        *my_value = *my_value + 1;
+    }
+    my_dict
+}
+
+#[pyfunction]
+fn add_element_to_set(_py: Python, my_set: &PySet) {
+    /// Add an item in a set
+    my_set.add(420).unwrap();
+}
+
+#[pyfunction]
+fn add_element_to_set_with_return(_py: Python, mut my_set: HashSet<i32>) -> HashSet<i32> {
+    /// Add an item in a set then return
+    my_set.insert(421);
+    my_set
+}
+
 #[allow(unused_imports)]
 use ndarray::{ArrayD, ArrayViewD, ArrayViewMutD};
-use numpy::{IntoPyArray, PyArrayDyn, PyReadonlyArrayDyn};
-use pyo3::prelude::{pymodule, PyModule, PyResult, Python};
+#[allow(unused_imports)]
+use pyo3::types::PyList;
+// use numpy::{IntoPyArray, PyArrayDyn, PyReadonlyArrayDyn};
+use pyo3::types::{PyDict, PySet};
+
 // Numpy examples
 
-// immutable example
-fn mult_with_return_rust(a: f64, x: ArrayViewD<'_, f64>, y: ArrayViewD<'_, f64>) -> ArrayD<f64> {
-    a * &x + &y
-}
-
-// wrapper of `mult_with_return_rust`
-#[pyfunction]
-fn mult_with_return<'py>(
-    py: Python<'py>,
-    a: f64,
-    x: PyReadonlyArrayDyn<f64>,
-    y: PyReadonlyArrayDyn<f64>,
-) -> &'py PyArrayDyn<f64> {
-    let x = x.as_array();
-    let y = y.as_array();
-    mult_with_return_rust(a, x, y).into_pyarray(py)
-}
-
-// mutable example (no return)
-fn mult_without_return_rust(a: f64, mut x: ArrayViewMutD<'_, f64>) {
-    x *= a;
-}
-
-// wrapper of `mult_without_return_rust`
-#[pyfunction]
-fn mult_without_return(_py: Python<'_>, a: f64, x: &PyArrayDyn<f64>) -> PyResult<()> {
-    let x = unsafe { x.as_array_mut() };
-    mult_without_return_rust(a, x);
-    Ok(())
-}
+// // immutable example
+// fn mult_with_return_rust(a: f64, x: ArrayViewD<'_, f64>, y: ArrayViewD<'_, f64>) -> ArrayD<f64> {
+//     a * &x + &y
+// }
+//
+// // wrapper of `mult_with_return_rust`
+// #[pyfunction]
+// fn mult_with_return<'py>(
+//     py: Python<'py>,
+//     a: f64,
+//     x: PyReadonlyArrayDyn<f64>,
+//     y: PyReadonlyArrayDyn<f64>,
+// ) -> &'py PyArrayDyn<f64> {
+//     let x = x.as_array();
+//     let y = y.as_array();
+//     mult_with_return_rust(a, x, y).into_pyarray(py)
+// }
+//
+// // mutable example (no return)
+// fn mult_without_return_rust(a: f64, mut x: ArrayViewMutD<'_, f64>) {
+//     x *= a;
+// }
+//
+// // wrapper of `mult_without_return_rust`
+// #[pyfunction]
+// fn mult_without_return(_py: Python<'_>, a: f64, x: &PyArrayDyn<f64>) -> PyResult<()> {
+//     let x = unsafe { x.as_array_mut() };
+//     mult_without_return_rust(a, x);
+//     Ok(())
+// }
 
 // Simple examples
 
@@ -222,12 +313,24 @@ fn my_library(_py: Python, m: &PyModule) -> PyResult<()> {
     // Add all functions and classes (structs) here that need to be exported and callable via Python
 
     // Functions to be exported
+    m.add_wrapped(wrap_pyfunction!(add_one))?;
+    m.add_wrapped(wrap_pyfunction!(add_one_and_a_half))?;
+    m.add_wrapped(wrap_pyfunction!(concatenate_string))?;
+    m.add_wrapped(wrap_pyfunction!(sum_of_list))?;
+    m.add_wrapped(wrap_pyfunction!(append_to_list))?;
+    m.add_wrapped(wrap_pyfunction!(double_of_list))?;
+    m.add_wrapped(wrap_pyfunction!(add_key_to_dict))?;
+    m.add_wrapped(wrap_pyfunction!(change_key_value))?;
+    m.add_wrapped(wrap_pyfunction!(change_key_value_with_return))?;
+    m.add_wrapped(wrap_pyfunction!(add_element_to_set))?;
+    m.add_wrapped(wrap_pyfunction!(add_element_to_set_with_return))?;
+
     m.add_wrapped(wrap_pyfunction!(sum_as_string))?;
     m.add_wrapped(wrap_pyfunction!(factorial))?;
     m.add_wrapped(wrap_pyfunction!(factorial_iter))?;
 
-    m.add_wrapped(wrap_pyfunction!(mult_without_return))?;
-    m.add_wrapped(wrap_pyfunction!(mult_with_return))?;
+    // m.add_wrapped(wrap_pyfunction!(mult_without_return))?;
+    // m.add_wrapped(wrap_pyfunction!(mult_with_return))?;
 
     // Classes to be exported
     // Linking error on linux if you import a local module/crate

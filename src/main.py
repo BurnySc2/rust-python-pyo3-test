@@ -31,11 +31,8 @@ def pathfinding_tests():
     # data.flat
     # data.flatten()
 
-
     width = 184
     height = 192
-
-
 
     # point_test = my_library.Point3d(3, 4, 5)
     # print(point_test)
@@ -43,6 +40,27 @@ def pathfinding_tests():
 
 
 def basic_tests():
+    # Test basic library functions
+    assert my_library.add_one(5) == 6
+    assert my_library.add_one_and_a_half(5) == 6.5
+    assert my_library.concatenate_string("hello") == "hello world!"
+    assert my_library.sum_of_list([1, 2, 3]) == 6
+    my_list = [1, 2, 3]
+    my_library.append_to_list(my_list)
+    assert my_list == [1, 2, 3, 420], my_list
+    assert my_library.double_of_list([1, 2, 3]) == [2, 4, 6]
+    my_dict = {}
+    my_library.add_key_to_dict(my_dict)
+    assert my_dict == {"test": "hello"}, my_dict
+    my_dict = {"hello": 5}
+    my_library.change_key_value(my_dict)
+    assert my_dict == {"hello": 6}, my_dict
+    assert my_library.change_key_value_with_return(my_dict) == {"hello": 7}, my_dict
+    my_set = {1, 2, 3}
+    my_library.add_element_to_set(my_set)
+    assert my_set == {1, 2, 3, 420}, my_set
+    assert my_library.add_element_to_set_with_return(my_set) == {1, 2, 3, 420, 421}, my_set
+
     def my_factorial(n):
         if n == 1:
             return 1
