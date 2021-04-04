@@ -67,14 +67,16 @@ def basic_tests():
     assert my_library.add_element_to_set_with_return(my_set) == {1, 2, 3, 420, 421}, my_set
 
     # Numpy arrays
-    array_1d = np.array([1, 2, 3])
-    array_2d = np.array([[1, 2, 3], [4, 5, 6]])
+    # Have to convert to int64 because the default type is platform dependent
+    # My guess is: 32bit machines will have int32 by default, and equivalent for 64bit machines
+    array_1d = np.array([1, 2, 3]).astype(np.int64)
+    array_2d = np.array([[1, 2, 3], [4, 5, 6]]).astype(np.int64)
     array_3d = np.array(
         [
             [[1, 2, 3], [4, 5, 6]],
             [[7, 8, 9], [10, 11, 12]],
         ]
-    )
+    ).astype(np.int64)
 
     # Only 2d array allowed
     my_array = array_1d.copy()
