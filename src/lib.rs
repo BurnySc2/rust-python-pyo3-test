@@ -250,12 +250,6 @@ fn add_element_to_set_with_return(_py: Python, mut my_set: HashSet<i32>) -> Hash
 }
 
 // Numpy examples
-
-// fn rust_ndarray_add_two(_py: Python, mut my_array: &ArrayViewMutD<'_, i32>)  {
-//     /// Read a numpy array and add 2 to each element
-//     my_array *= 2;
-// }
-
 fn rust_numpy_add_2d(mut x: ArrayViewMut2<i64>, a: i64) {
     x += a;
 }
@@ -299,43 +293,6 @@ fn numpy_calc_sum_of_array(_py: Python, x: PyReadonlyArrayDyn<i64>) -> i64 {
     let b = x.as_array();
     b.sum()
 }
-
-// #[pyfunction]
-// fn numpy_add_value_with_return<'py>(_py: Python<'py>, x: PyReadonlyArrayDyn<i64>, a: i64) -> &'py ArrayViewMut2<i64> {
-//     let b = x.as_array();
-//     &b + a
-// }
-
-// // immutable example
-// fn mult_with_return_rust(a: f64, x: ArrayViewD<'_, f64>, y: ArrayViewD<'_, f64>) -> ArrayD<f64> {
-//     a * &x + &y
-// }
-//
-// // wrapper of `mult_with_return_rust`
-// #[pyfunction]
-// fn mult_with_return<'py>(
-//     py: Python<'py>,
-//     a: f64,
-//     x: PyReadonlyArrayDyn<f64>,
-//     y: PyReadonlyArrayDyn<f64>,
-// ) -> &'py PyArrayDyn<f64> {
-//     let x = x.as_array();
-//     let y = y.as_array();
-//     mult_with_return_rust(a, x, y).into_pyarray(py)
-// }
-//
-// // mutable example (no return)
-// fn mult_without_return_rust(a: f64, mut x: ArrayViewMutD<'_, f64>) {
-//     x *= a;
-// }
-//
-// // wrapper of `mult_without_return_rust`
-// #[pyfunction]
-// fn mult_without_return(_py: Python<'_>, a: f64, x: &PyArrayDyn<f64>) -> PyResult<()> {
-//     let x = unsafe { x.as_array_mut() };
-//     mult_without_return_rust(a, x);
-//     Ok(())
-// }
 
 /// This module is a python module implemented in Rust.
 /// This function name has to be the same as the lib.name declared in Cargo.toml
@@ -383,21 +340,120 @@ mod tests {
     use super::*;
     #[allow(unused_imports)]
     use test::Bencher;
+    static ERROR_MESSAGE: &str = "This part should not be executed";
 
     // This will only be executed when using "cargo test" and not "cargo bench"
-    #[test]
-    fn test_factorial_function() {
-        assert_eq!(2, factorial(2));
-        assert_eq!(6, factorial(3));
-        assert_eq!(24, factorial(4));
-        assert_eq!(24, factorial_iter(4));
+    #[bench]
+    fn test_add_one(b: &mut Bencher) {
+        b.iter(|| {
+            pyo3::Python::with_gil(|py| {
+                let result = add_one(py, 3);
+                if let Ok(value) = result {
+                    assert_eq!(value, 4);
+                } else {
+                    assert!(false, "{}", ERROR_MESSAGE)
+                }
+            })
+        })
     }
 
     #[bench]
-    fn bench_factorial_function(b: &mut Bencher) {
-        b.iter(|| factorial(2));
-        b.iter(|| factorial(3));
-        b.iter(|| factorial(4));
-        b.iter(|| factorial_iter(4));
+    fn test_add_one_and_a_half(b: &mut Bencher) {
+        b.iter(|| {
+            pyo3::Python::with_gil(|py| {
+                let result = add_one_and_a_half(py, 3.0);
+                if let Ok(value) = result {
+                    assert_eq!(value, 4.5);
+                } else {
+                    assert!(false, "{}", ERROR_MESSAGE)
+                }
+            })
+        })
+    }
+
+    #[bench]
+    fn test_concatenate_string(b: &mut Bencher) {
+        b.iter(|| {
+            pyo3::Python::with_gil(|py| {
+                let result = concatenate_string(py, String::from("hello"));
+                if let Ok(value) = result {
+                    assert_eq!(value, String::from("hello world!"));
+                } else {
+                    assert!(false, "{}", ERROR_MESSAGE)
+                }
+            })
+        })
+    }
+
+    #[bench]
+    fn bench_sum_of_list(b: &mut Bencher) {
+        b.iter(|| {
+            pyo3::Python::with_gil(|py| {
+                let example_list = vec![1, 2, 3];
+                let result = sum_of_list(py, example_list.clone());
+                if let Ok(value) = result {
+                    assert_eq!(value, example_list.iter().sum());
+                } else {
+                    assert!(false, "{}", ERROR_MESSAGE)
+                }
+            })
+        });
+    }
+
+    #[bench]
+    fn bench_append_to_list(b: &mut Bencher) {
+        b.iter(|| {
+            pyo3::Python::with_gil(|py| {
+                let python_list = PyList::new(py, vec![1, 2, 3]);
+                let correct_result = PyList::new(py, vec![1, 2, 3, 420]);
+                python_list.append(420).unwrap();
+
+                assert_eq!(python_list.len(), 4);
+                assert_eq!(correct_result.len(), 4);
+                for (i, j) in python_list.iter().zip(correct_result.iter()) {
+                    // Loop over each value and convert it to i32 before comparing
+                    assert_eq!(i.extract::<i32>().unwrap(), j.extract::<i32>().unwrap());
+                }
+            })
+        });
+    }
+
+    #[bench]
+    fn bench_double_of_list(b: &mut Bencher) {
+        b.iter(|| {
+            pyo3::Python::with_gil(|py| {
+                let example_list = vec![1, 2, 3];
+                let result = double_of_list(py, example_list.clone());
+                if let Ok(value) = result {
+                    let correct_result = example_list
+                        .into_iter()
+                        .map(|x| x * 2)
+                        .collect::<Vec<i32>>();
+                    assert_eq!(value, correct_result);
+                } else {
+                    assert!(false, "{}", ERROR_MESSAGE)
+                }
+            })
+        });
+    }
+
+    #[bench]
+    fn bench_tuple_interaction(b: &mut Bencher) {
+        b.iter(|| {
+            pyo3::Python::with_gil(|py| {
+                let example_tuple = (5, 6);
+                let result = tuple_interaction(py, example_tuple.clone());
+                if let Ok(value) = result {
+                    let correct_result = (
+                        example_tuple.0,
+                        example_tuple.1,
+                        example_tuple.0 + example_tuple.1,
+                    );
+                    assert_eq!(value, correct_result);
+                } else {
+                    assert!(false, "{}", ERROR_MESSAGE)
+                }
+            })
+        });
     }
 }
