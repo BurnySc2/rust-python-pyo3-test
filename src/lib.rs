@@ -340,6 +340,7 @@ mod tests {
     use super::*;
     #[allow(unused_imports)]
     use test::Bencher;
+
     static ERROR_MESSAGE: &str = "This part should not be executed";
 
     // This will only be executed when using "cargo test" and not "cargo bench"
@@ -453,6 +454,81 @@ mod tests {
                 } else {
                     assert!(false, "{}", ERROR_MESSAGE)
                 }
+            })
+        });
+    }
+
+    #[bench]
+    fn bench_add_key_to_dict(b: &mut Bencher) {
+        b.iter(|| {
+            pyo3::Python::with_gil(|py| {
+                let example_dict = PyDict::new(py);
+                add_key_to_dict(py, example_dict);
+                assert_eq!(example_dict.len(), 1);
+                for (key, value) in example_dict.iter() {
+                    let my_key = key.extract::<String>().unwrap();
+                    let my_value = value.extract::<String>().unwrap();
+                    assert_eq!(my_key, "test");
+                    assert_eq!(my_value, "hello");
+                }
+            })
+        });
+    }
+
+    #[bench]
+    fn bench_change_key_value(b: &mut Bencher) {
+        b.iter(|| {
+            pyo3::Python::with_gil(|py| {
+                let example_dict = PyDict::new(py);
+                example_dict.set_item("hello", 5).unwrap();
+                change_key_value(py, example_dict);
+                assert_eq!(example_dict.len(), 1);
+                for (key, value) in example_dict.iter() {
+                    let my_key = key.extract::<String>().unwrap();
+                    let my_value = value.extract::<i32>().unwrap();
+                    assert_eq!(my_key, "hello");
+                    assert_eq!(my_value, 6);
+                }
+            })
+        });
+    }
+
+    #[bench]
+    fn bench_change_key_value_with_return(b: &mut Bencher) {
+        b.iter(|| {
+            pyo3::Python::with_gil(|py| {
+                let mut example_dict = HashMap::new();
+                example_dict.insert(String::from("hello"), 5);
+                let return_dict = change_key_value_with_return(py, example_dict);
+                assert_eq!(return_dict.len(), 1);
+                for (key, &value) in return_dict.iter() {
+                    assert_eq!(key, "hello");
+                    assert_eq!(value, 6);
+                }
+            })
+        });
+    }
+
+    #[bench]
+    fn bench_add_element_to_set(b: &mut Bencher) {
+        b.iter(|| {
+            pyo3::Python::with_gil(|py| {
+                let example_set = PySet::new::<i32>(py, &[]).unwrap();
+                add_element_to_set(py, &example_set);
+                assert_eq!(example_set.len(), 1);
+                assert!(example_set.contains(420).unwrap());
+            })
+        });
+    }
+
+    #[bench]
+    fn bench_add_element_to_set_with_return(b: &mut Bencher) {
+        b.iter(|| {
+            pyo3::Python::with_gil(|py| {
+                let example_set = HashSet::new();
+                let new_set = add_element_to_set_with_return(py, example_set);
+                assert_eq!(new_set.len(), 1);
+                assert!(new_set.contains(&421));
             })
         });
     }

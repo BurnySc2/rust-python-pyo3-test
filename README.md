@@ -20,5 +20,5 @@
 - [x] Load a numpy array in rust and do some operation on it (e.g. sum of all elements)
 - [x] Load a numpy array in rust and add a number to each element (mutable numpy array)
 - [x] Load a numpy array in rust and add a number to each element and return new array (immutable numpy array)
-- [ ] Be able to run tests and benchmarks
+- [x] Be able to run tests and benchmarks
 
