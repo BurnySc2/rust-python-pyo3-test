@@ -250,15 +250,15 @@ fn add_element_to_set_with_return(_py: Python, mut my_set: HashSet<i32>) -> Hash
 }
 
 // Numpy examples
-fn rust_numpy_add_2d(mut x: ArrayViewMut2<i64>, a: i64) {
-    x += a;
+fn rust_numpy_add_2d(x: &mut ArrayViewMut2<i64>, a: i64) {
+    *x += a;
 }
 
 #[pyfunction]
 fn numpy_add_value_2d(_py: Python, x: &PyArray2<i64>, a: i64) {
     /// Add value to 2 dimensional numpy array - no return
-    let b = unsafe { x.as_array_mut() };
-    rust_numpy_add_2d(b, a);
+    let mut b = unsafe { x.as_array_mut() };
+    rust_numpy_add_2d(&mut b, a);
 }
 
 fn rust_numpy_add(mut x: ArrayViewMutD<i64>, a: i64) {
@@ -338,6 +338,8 @@ fn my_library(_py: Python, m: &PyModule) -> PyResult<()> {
 #[cfg(test)] // Only compiles when running tests
 mod tests {
     use super::*;
+    use ndarray::array;
+    use numpy::ToPyArray;
     #[allow(unused_imports)]
     use test::Bencher;
 
@@ -529,6 +531,48 @@ mod tests {
                 let new_set = add_element_to_set_with_return(py, example_set);
                 assert_eq!(new_set.len(), 1);
                 assert!(new_set.contains(&421));
+            })
+        });
+    }
+
+    #[bench]
+    fn bench_rust_numpy_add_2d(b: &mut Bencher) {
+        b.iter(|| {
+            let mut a1 = array![[1, 2], [3, 4]];
+            let mut a2 = a1.view_mut();
+            rust_numpy_add_2d(&mut a2, 2);
+
+            let mut a3 = array![[3, 4], [5, 6]];
+            let a4 = a3.view_mut();
+            assert_eq!(a2, a4);
+        });
+    }
+
+    #[bench]
+    fn bench_numpy_add_value_2d(b: &mut Bencher) {
+        b.iter(|| {
+            pyo3::Python::with_gil(|py| {
+                let a1 = array![[1, 2], [3, 4]];
+                let result = array![[3, 4], [5, 6]];
+                let value = 2;
+
+                /// If this fails: need to globally install numpy: pip install numpy
+                let a2 = a1.to_pyarray(py);
+                numpy_add_value_2d(py, a2, value);
+                let a3 = unsafe { a2.as_array() };
+                assert_eq!(a3, result);
+                assert_eq!(a3.sum(), 18);
+
+                // a1.to_pyarray and PyArray2::from_array() should do the same
+                let a4 = PyArray2::from_array(py, &a1);
+                numpy_add_value_2d(py, a4, value);
+                let a5 = unsafe { a4.as_array() };
+                assert_eq!(a5, result);
+
+                // Test conversion: from ndarray to pyarray, and then to ndarray again
+                let a7 = PyArray2::from_array(py, &a1);
+                let a8 = unsafe { a7.as_array() };
+                assert_eq!(a1, a8);
             })
         });
     }
