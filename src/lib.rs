@@ -11,16 +11,21 @@ https://docs.rs/pyo3
 #![feature(test)]
 extern crate test;
 
+use std::collections::{HashMap, HashSet};
+
+// https://github.com/PyO3/pyo3
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 use pyo3::PyObjectProtocol;
-// https://github.com/PyO3/pyo3
+
+use ndarray::{ArrayD, ArrayViewD, ArrayViewMut2, ArrayViewMutD};
+use numpy::{IntoPyArray, PyArray2, PyArrayDyn, PyReadonlyArrayDyn};
+use pyo3::types::{PyDict, PyList, PySet};
 
 use blitz_path::a_star_path;
 use blitz_path::jps_path;
 use movingai::Coords2D;
 use movingai::MovingAiMap;
-use std::collections::{HashMap, HashSet};
 
 /// Class example
 #[pyclass(name = "RustPoint2")]
@@ -198,8 +203,13 @@ fn double_of_list(_py: Python, my_list: Vec<i32>) -> PyResult<Vec<i32>> {
 }
 
 #[pyfunction]
+fn tuple_interaction(_py: Python, my_tuple: (i32, i32)) -> PyResult<(i32, i32, i32)> {
+    /// Input is tuple of fixed length, outputting a tuple of fixed length
+    Ok((my_tuple.0, my_tuple.1, my_tuple.0 + my_tuple.1))
+}
+
+#[pyfunction]
 fn add_key_to_dict(_py: Python, my_dict: &PyDict) {
-    #[allow(unused_doc_comments)]
     /// Adding a key
     my_dict.set_item("test", "hello").unwrap();
 }
@@ -221,32 +231,80 @@ fn change_key_value_with_return(
 ) -> HashMap<String, i32> {
     /// Change a value in a dict, then return it
     if let Some(my_value) = my_dict.get_mut("hello") {
-        *my_value = *my_value + 1;
+        *my_value += 1;
     }
     my_dict
 }
 
 #[pyfunction]
 fn add_element_to_set(_py: Python, my_set: &PySet) {
-    /// Add an item in a set
+    /// Add an item to a set
     my_set.add(420).unwrap();
 }
 
 #[pyfunction]
 fn add_element_to_set_with_return(_py: Python, mut my_set: HashSet<i32>) -> HashSet<i32> {
-    /// Add an item in a set then return
+    /// Add an item to a set, then return
     my_set.insert(421);
     my_set
 }
 
-#[allow(unused_imports)]
-use ndarray::{ArrayD, ArrayViewD, ArrayViewMutD};
-#[allow(unused_imports)]
-use pyo3::types::PyList;
-// use numpy::{IntoPyArray, PyArrayDyn, PyReadonlyArrayDyn};
-use pyo3::types::{PyDict, PySet};
-
 // Numpy examples
+
+// fn rust_ndarray_add_two(_py: Python, mut my_array: &ArrayViewMutD<'_, i32>)  {
+//     /// Read a numpy array and add 2 to each element
+//     my_array *= 2;
+// }
+
+fn rust_numpy_add_2d(mut x: ArrayViewMut2<i64>, a: i64) {
+    x += a;
+}
+
+#[pyfunction]
+fn numpy_add_value_2d(_py: Python, x: &PyArray2<i64>, a: i64) {
+    /// Add value to 2 dimensional numpy array - no return
+    let b = unsafe { x.as_array_mut() };
+    rust_numpy_add_2d(b, a);
+}
+
+fn rust_numpy_add(mut x: ArrayViewMutD<i64>, a: i64) {
+    x += a;
+}
+
+#[pyfunction]
+fn numpy_add_value(_py: Python, x: &PyArrayDyn<i64>, a: i64) {
+    /// Add value to any dimensional numpy array - no return
+    let b = unsafe { x.as_array_mut() };
+    rust_numpy_add(b, a);
+}
+
+fn rust_numpy_add_and_return(x: ArrayViewD<'_, i64>, a: i64) -> ArrayD<i64> {
+    &x + a
+}
+
+#[pyfunction]
+fn numpy_add_value_with_return<'py>(
+    py: Python<'py>,
+    x: PyReadonlyArrayDyn<i64>,
+    a: i64,
+) -> &'py PyArrayDyn<i64> {
+    /// Return new array with 2 added to each element
+    let b = x.as_array();
+    rust_numpy_add_and_return(b, a).into_pyarray(py)
+}
+
+#[pyfunction]
+fn numpy_calc_sum_of_array(_py: Python, x: PyReadonlyArrayDyn<i64>) -> i64 {
+    /// Return sum of any dimensional array
+    let b = x.as_array();
+    b.sum()
+}
+
+// #[pyfunction]
+// fn numpy_add_value_with_return<'py>(_py: Python<'py>, x: PyReadonlyArrayDyn<i64>, a: i64) -> &'py ArrayViewMut2<i64> {
+//     let b = x.as_array();
+//     &b + a
+// }
 
 // // immutable example
 // fn mult_with_return_rust(a: f64, x: ArrayViewD<'_, f64>, y: ArrayViewD<'_, f64>) -> ArrayD<f64> {
@@ -279,33 +337,6 @@ use pyo3::types::{PyDict, PySet};
 //     Ok(())
 // }
 
-// Simple examples
-
-/// Formats the sum of two numbers as string
-#[pyfunction]
-fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
-    Ok((a + b).to_string())
-}
-
-/// Iterative approach of calculating a factorial
-#[pyfunction]
-fn factorial_iter(input: u128) -> u128 {
-    let mut result = 1;
-    for i in 2..=input {
-        result *= i
-    }
-    result
-}
-
-/// Recursive approach of calculating a factorial
-#[pyfunction]
-fn factorial(input: u128) -> u128 {
-    if input == 1 {
-        return 1u128;
-    }
-    input * factorial(input - 1)
-}
-
 /// This module is a python module implemented in Rust.
 /// This function name has to be the same as the lib.name declared in Cargo.toml
 #[pymodule]
@@ -316,18 +347,24 @@ fn my_library(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(add_one))?;
     m.add_wrapped(wrap_pyfunction!(add_one_and_a_half))?;
     m.add_wrapped(wrap_pyfunction!(concatenate_string))?;
+    /// List
     m.add_wrapped(wrap_pyfunction!(sum_of_list))?;
     m.add_wrapped(wrap_pyfunction!(append_to_list))?;
     m.add_wrapped(wrap_pyfunction!(double_of_list))?;
+    /// Tuple
+    m.add_wrapped(wrap_pyfunction!(tuple_interaction))?;
+    /// Dict
     m.add_wrapped(wrap_pyfunction!(add_key_to_dict))?;
     m.add_wrapped(wrap_pyfunction!(change_key_value))?;
     m.add_wrapped(wrap_pyfunction!(change_key_value_with_return))?;
+    /// Set
     m.add_wrapped(wrap_pyfunction!(add_element_to_set))?;
     m.add_wrapped(wrap_pyfunction!(add_element_to_set_with_return))?;
-
-    m.add_wrapped(wrap_pyfunction!(sum_as_string))?;
-    m.add_wrapped(wrap_pyfunction!(factorial))?;
-    m.add_wrapped(wrap_pyfunction!(factorial_iter))?;
+    /// Numpy
+    m.add_wrapped(wrap_pyfunction!(numpy_add_value_2d))?;
+    m.add_wrapped(wrap_pyfunction!(numpy_add_value))?;
+    m.add_wrapped(wrap_pyfunction!(numpy_add_value_with_return))?;
+    m.add_wrapped(wrap_pyfunction!(numpy_calc_sum_of_array))?;
 
     // m.add_wrapped(wrap_pyfunction!(mult_without_return))?;
     // m.add_wrapped(wrap_pyfunction!(mult_with_return))?;

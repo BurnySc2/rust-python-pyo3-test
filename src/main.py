@@ -44,6 +44,7 @@ def basic_tests():
     assert my_library.add_one(5) == 6
     assert my_library.add_one_and_a_half(5) == 6.5
     assert my_library.concatenate_string("hello") == "hello world!"
+    # List
     assert my_library.sum_of_list([1, 2, 3]) == 6
     my_list = [1, 2, 3]
     my_library.append_to_list(my_list)
@@ -51,34 +52,56 @@ def basic_tests():
     assert my_library.double_of_list([1, 2, 3]) == [2, 4, 6]
     my_dict = {}
     my_library.add_key_to_dict(my_dict)
+    # Tuple
+    assert my_library.tuple_interaction((5, 6)) == (5, 6, 11)
+    # Dict
     assert my_dict == {"test": "hello"}, my_dict
     my_dict = {"hello": 5}
     my_library.change_key_value(my_dict)
     assert my_dict == {"hello": 6}, my_dict
     assert my_library.change_key_value_with_return(my_dict) == {"hello": 7}, my_dict
+    # Set
     my_set = {1, 2, 3}
     my_library.add_element_to_set(my_set)
     assert my_set == {1, 2, 3, 420}, my_set
     assert my_library.add_element_to_set_with_return(my_set) == {1, 2, 3, 420, 421}, my_set
 
-    def my_factorial(n):
-        if n == 1:
-            return 1
-        return n * my_factorial(n - 1)
+    # Numpy arrays
+    array_1d = np.array([1, 2, 3])
+    array_2d = np.array([[1, 2, 3], [4, 5, 6]])
+    array_3d = np.array(
+        [
+            [[1, 2, 3], [4, 5, 6]],
+            [[7, 8, 9], [10, 11, 12]],
+        ]
+    )
 
-    input = 34
-    t1 = time.perf_counter()
-    output = my_library.factorial(input)
-    t2 = time.perf_counter()
-    output2 = my_factorial(input)
-    t3 = time.perf_counter()
-    print(f"{input}! = Rust: {output} ({type(output)}) = Py: {output2}")
-    print(f"Time passed: {t2-t1} and {t3-t2}")
-    assert output == output2, f"{output} != {output2}"
+    # Only 2d array allowed
+    my_array = array_1d.copy()
+    try:
+        my_library.numpy_add_value_2d(my_array, 2)
+        assert False, "Function above should throw error on 1d array"
+    except TypeError:
+        pass
 
-    string_output = my_library.sum_as_string(7, 6)
-    assert string_output == "13"
+    my_array = array_2d.copy()
+    my_library.numpy_add_value_2d(my_array, 2)
+    assert np.array_equal(my_array, array_2d.copy() + 2)
 
+    # Adding number to any dimensional array is allowed
+    my_array = array_1d.copy()
+    my_library.numpy_add_value(my_array, 2)
+    assert np.array_equal(my_array, array_1d.copy() + 2)
+    my_array = array_2d.copy()
+    my_library.numpy_add_value(my_array, 2)
+    assert np.array_equal(my_array, array_2d.copy() + 2)
+
+    # Check if any dimensions is possible
+    assert my_library.numpy_calc_sum_of_array(array_1d.copy()) == array_1d.sum()
+    assert my_library.numpy_calc_sum_of_array(array_2d.copy()) == array_2d.sum()
+    assert my_library.numpy_calc_sum_of_array(array_3d.copy()) == array_3d.sum()
+
+    # Test rust structs
     p1 = my_library.RustPoint2(0, 0)
     print(p1)
     p2 = my_library.RustPoint2(3, 4)
@@ -114,17 +137,6 @@ def basic_tests():
     print(ps, type(ps))
     for p in ps.points:
         print(p, type(p))
-
-    # Test numpy arrays
-    my_list = [0, 1, 2, 3, 4]
-    my_array = np.asarray([0, 1, 2, 3, 4, 5]).astype(float)
-    my_array2 = np.asarray([0, 0, 0, 0, 0, 0]).astype(float)
-    # TODO: read numpy arrays in rust functions / structs
-    my_array3 = my_library.mult_with_return(5, my_array, my_array2)
-    my_library.mult_without_return(5, my_array)
-    print(my_array)
-    print(my_array3)
-    assert np.allclose(my_array, my_array3)
 
 
 if __name__ == "__main__":
