@@ -61,16 +61,22 @@ jobs:
         rustup component add clippy
         cargo clippy
 
+    - name: Build
+      run: cargo build --verbose --release
+
+    - name: List contents
+      run: |
+        sudo apt-get install tree
+        tree target/release
+      if: matrix.os == 'ubuntu-latest'
+
     - name: Test
       run: cargo test --verbose --release --no-default-features
-#      if: matrix.os == 'windows-latest' || matrix.python-version == '3.8'
+      if: matrix.os == 'windows-latest' || matrix.python-version == '3.8'
 
     - name: Bench
       run: cargo bench --no-default-features
-#      if: matrix.os == 'windows-latest' || matrix.python-version == '3.8'
-
-    - name: Build
-      run: cargo build --verbose --release
+      if: matrix.os == 'windows-latest' || matrix.python-version == '3.8'
 
     - name: Run python script with library (linux)
       run: |
@@ -91,19 +97,13 @@ jobs:
     # TODO only one .so file needs to be built and it can be run from any python version on the linux distribution, and this probably also works on mac
     - name: Create archive for Linux
       run: |
-        sudo apt-get install tree
-        tree target/release
         mv ./target/release/libmy_library.so ./artifacts/my_library.so
-#        7z a -ttar -so -an ./target/release/libmy_library.so ${{ env.RELEASE_ADDS }} | 7z a -si ./artifacts/${{ env.RELEASE_LIB }}-linux-x86_64.tar.gz
       if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.7'
 
     - name: Create archive for Windows
       run: |
         dir target/release
         python move.py ${{ matrix.python-version }}
-#        move ./target/release/my_library.dll ./artifacts/my_lib.pyd
-#        move ./target/release/my_library.dll ./artifacts/my_lib.cp${{}}.pyd
-#        7z a -tzip ./artifacts/${{ env.RELEASE_LIB }}-windows-x86_64.zip ./target/release/my_library.dll
       if: matrix.os == 'windows-latest'
 
     # See - https://github.com/actions/upload-artifact/issues/39
