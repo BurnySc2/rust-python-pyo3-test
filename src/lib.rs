@@ -26,6 +26,8 @@ use blitz_path::a_star_path;
 use blitz_path::jps_path;
 use movingai::Coords2D;
 use movingai::MovingAiMap;
+use num_bigint::BigInt;
+use std::str::FromStr;
 
 /// Class example
 #[pyclass(name = "RustPoint2")]
@@ -249,6 +251,22 @@ fn add_element_to_set_with_return(_py: Python, mut my_set: HashSet<i32>) -> Hash
     my_set
 }
 
+// Larger than 128 bit numbers
+fn rust_big_factorial(n: i128) -> BigInt {
+    // let mut number = BigInt::new(Sign::Plus,vec![1]);
+    let mut number = BigInt::from_str("1").unwrap();
+    for i in 2..=n {
+        number *= i;
+    }
+    number
+}
+
+#[pyfunction]
+fn big_num_factorial(_py: Python, n: i128) -> PyResult<String> {
+    /// TODO How to return BigUint to python directly? Returns string for now
+    Ok(rust_big_factorial(n).to_string())
+}
+
 // Numpy examples
 fn rust_numpy_add_2d(x: &mut ArrayViewMut2<i64>, a: i64) {
     *x += a;
@@ -317,6 +335,8 @@ fn my_library(_py: Python, m: &PyModule) -> PyResult<()> {
     /// Set
     m.add_wrapped(wrap_pyfunction!(add_element_to_set))?;
     m.add_wrapped(wrap_pyfunction!(add_element_to_set_with_return))?;
+    /// Big integers
+    m.add_wrapped(wrap_pyfunction!(big_num_factorial))?;
     /// Numpy
     m.add_wrapped(wrap_pyfunction!(numpy_add_value_2d))?;
     m.add_wrapped(wrap_pyfunction!(numpy_add_value))?;
@@ -340,7 +360,6 @@ mod tests {
     use super::*;
     use ndarray::array;
     use numpy::ToPyArray;
-    #[allow(unused_imports)]
     use test::Bencher;
 
     static ERROR_MESSAGE: &str = "This part should not be executed";
@@ -532,6 +551,16 @@ mod tests {
                 assert_eq!(new_set.len(), 1);
                 assert!(new_set.contains(&421));
             })
+        });
+    }
+
+    #[bench]
+    fn bench_rust_big_factorial(b: &mut Bencher) {
+        b.iter(|| {
+            let a = 100;
+            let b = rust_big_factorial(a);
+            let c = BigInt::from_str("93326215443944152681699238856266700490715968264381621468592963895217599993229915608941463976156518286253697920827223758251185210916864000000000000000000000000").unwrap();
+            assert_eq!(b, c);
         });
     }
 

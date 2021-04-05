@@ -147,6 +147,7 @@ dependencies = [
  "blitz-path",
  "movingai",
  "ndarray",
+ "num-bigint",
  "numpy",
  "pyo3",
 ]
@@ -162,6 +163,17 @@ dependencies = [
  "num-integer",
  "num-traits",
  "rawpointer",
+]
+
+[[package]]
+name = "num-bigint"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4e0d047c1062aa51e256408c560894e5251f08925980e53cf1aa5bd00eec6512"
+dependencies = [
+ "autocfg",
+ "num-integer",
+ "num-traits",
 ]
 
 [[package]]

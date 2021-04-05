@@ -1,4 +1,5 @@
 import time
+from math import factorial
 import numpy as np
 import my_library
 
@@ -65,6 +66,12 @@ def basic_tests():
     my_library.add_element_to_set(my_set)
     assert my_set == {1, 2, 3, 420}, my_set
     assert my_library.add_element_to_set_with_return(my_set) == {1, 2, 3, 420, 421}, my_set
+
+    # Big numbers
+    a = factorial(400)
+    b = my_library.big_num_factorial(400)
+    assert str(a) == b, (a, b)
+
 
     # Numpy arrays
     # Have to convert to int64 because the default type is platform dependent
