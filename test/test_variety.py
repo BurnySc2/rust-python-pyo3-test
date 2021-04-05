@@ -7,7 +7,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 import platform
 from pathlib import Path
 
-import pytest
+from pytest_benchmark.fixture import BenchmarkFixture
 from hypothesis import given, settings
 import hypothesis.strategies as st
 
@@ -75,3 +75,13 @@ def test_tuple_interaction(my_tuple: Tuple[int, int]):
 # TODO Big number (factorial)
 # TODO Numpy arrays
 # TODO Pathfinding when implemented
+
+# TODO Benchmarks
+# Which numpy conversion to and from rust is the fastest?
+# Which pathfinding algorithm is the fastest? Are there differences when the path distance is small/large?
+# Which pathfinding algorithm to use when trying to find paths from multiple sources to one target (or one source to multiple targets)
+
+
+def test_tuple_interaction_bench(benchmark: BenchmarkFixture):
+    my_tuple = (1, 2)
+    _result = benchmark(my_library.tuple_interaction, my_tuple)

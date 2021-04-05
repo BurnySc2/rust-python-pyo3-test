@@ -99,6 +99,10 @@ jobs:
       run: |
         poetry run pytest -s
 
+    - name: Run extensive python benches (pytest-benchmark)
+      run: |
+        poetry run pytest -s --benchmark-compare
+
     - name: Create artifact directory
       run: mkdir artifacts
 
