@@ -180,11 +180,11 @@ fn concatenate_string(_py: Python, value: String) -> PyResult<String> {
 }
 
 #[pyfunction]
-fn sum_of_list(_py: Python, my_list: Vec<i32>) -> PyResult<i32> {
+fn sum_of_list(_py: Python, my_list: Vec<i128>) -> PyResult<i128> {
     /// Looping over a list and calculating the sum
-    // let sum: i32 = my_list.iter().sum();
-    // let sum: Option<i32> = my_list.iter().reduce(|a, b| &a+&b);
-    let sum: Option<i32> = my_list.into_iter().reduce(|a, b| a + b);
+    // let sum: i128 = my_list.iter().sum();
+    // let sum: Option<i128> = my_list.iter().reduce(|a, b| &a+&b);
+    let sum: Option<i128> = my_list.into_iter().reduce(|a, b| a + b);
     if let Some(my_sum) = sum {
         return Ok(my_sum);
     }
@@ -198,14 +198,14 @@ fn append_to_list(_py: Python, my_list: &PyList) {
 }
 
 #[pyfunction]
-fn double_of_list(_py: Python, my_list: Vec<i32>) -> PyResult<Vec<i32>> {
+fn double_of_list(_py: Python, my_list: Vec<i128>) -> PyResult<Vec<i128>> {
     /// Returning a new list where each element is doubled
     let my_list_double = my_list.into_iter().map(|x| &x * 2).collect();
     Ok(my_list_double)
 }
 
 #[pyfunction]
-fn tuple_interaction(_py: Python, my_tuple: (i32, i32)) -> PyResult<(i32, i32, i32)> {
+fn tuple_interaction(_py: Python, my_tuple: (i128, i128)) -> PyResult<(i128, i128, i128)> {
     /// Input is tuple of fixed length, outputting a tuple of fixed length
     Ok((my_tuple.0, my_tuple.1, my_tuple.0 + my_tuple.1))
 }
@@ -229,8 +229,8 @@ fn change_key_value(_py: Python, my_dict: &PyDict) {
 #[pyfunction]
 fn change_key_value_with_return(
     _py: Python,
-    mut my_dict: HashMap<String, i32>,
-) -> HashMap<String, i32> {
+    mut my_dict: HashMap<String, i128>,
+) -> HashMap<String, i128> {
     /// Change a value in a dict, then return it
     if let Some(my_value) = my_dict.get_mut("hello") {
         *my_value += 1;
@@ -319,6 +319,7 @@ fn my_library(_py: Python, m: &PyModule) -> PyResult<()> {
     // Add all functions and classes (structs) here that need to be exported and callable via Python
 
     // Functions to be exported
+    /// Primitives
     m.add_wrapped(wrap_pyfunction!(add_one))?;
     m.add_wrapped(wrap_pyfunction!(add_one_and_a_half))?;
     m.add_wrapped(wrap_pyfunction!(concatenate_string))?;
@@ -450,7 +451,7 @@ mod tests {
                     let correct_result = example_list
                         .into_iter()
                         .map(|x| x * 2)
-                        .collect::<Vec<i32>>();
+                        .collect::<Vec<i128>>();
                     assert_eq!(value, correct_result);
                 } else {
                     assert!(false, "{}", ERROR_MESSAGE)
