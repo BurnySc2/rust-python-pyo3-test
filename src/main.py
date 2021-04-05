@@ -72,7 +72,6 @@ def basic_tests():
     b = my_library.big_num_factorial(400)
     assert str(a) == b, (a, b)
 
-
     # Numpy arrays
     # Have to convert to int64 because the default type is platform dependent
     # My guess is: 32bit machines will have int32 by default, and equivalent for 64bit machines
@@ -109,6 +108,12 @@ def basic_tests():
     assert my_library.numpy_calc_sum_of_array(array_1d.copy()) == array_1d.sum()
     assert my_library.numpy_calc_sum_of_array(array_2d.copy()) == array_2d.sum()
     assert my_library.numpy_calc_sum_of_array(array_3d.copy()) == array_3d.sum()
+
+    my_array = np.array([[0, 0, 0], [0, 1, 1], [0, 0, 1]])
+    expected = list("OOOO..OO.")
+    result = my_library.numpy_convert_to_1d_vec(my_array)
+    assert isinstance(result, list)
+    assert result == expected
 
     # Test rust structs
     p1 = my_library.RustPoint2(0, 0)

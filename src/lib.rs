@@ -18,8 +18,8 @@ use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 use pyo3::PyObjectProtocol;
 
-use ndarray::{ArrayD, ArrayViewD, ArrayViewMut2, ArrayViewMutD};
-use numpy::{IntoPyArray, PyArray2, PyArrayDyn, PyReadonlyArrayDyn};
+use ndarray::{Array2, ArrayD, ArrayView2, ArrayViewD, ArrayViewMut2, ArrayViewMutD};
+use numpy::{IntoPyArray, PyArray2, PyArrayDyn, PyReadonlyArray2, PyReadonlyArrayDyn};
 use pyo3::types::{PyDict, PyList, PySet};
 
 use blitz_path::a_star_path;
@@ -312,6 +312,41 @@ fn numpy_calc_sum_of_array(_py: Python, x: PyReadonlyArrayDyn<i64>) -> i64 {
     b.sum()
 }
 
+fn rust_replace_int_with_char(my_array: ArrayView2<i64>) -> Array2<char> {
+    /// Input: 2d ndarray with integers
+    /// Output: 2d ndarray with chars
+    /// Does: replaces int '1' with char '.', and all other fields are char 'O'
+    let c = my_array.mapv(|value| {
+        if value == 1 {
+            return '.';
+        }
+        'O'
+    });
+    c
+}
+
+// fn rust_convert_numpy_array_to_1d_vec(my_array: ArrayView2<i64>) -> Vec<i64> {
+//     // let a = Array::from_iter(my_array.iter().cloned());
+//     /// Converts a 2d array to a 1 dimensional vec
+//     let a = my_array.to_owned().into_raw_vec();
+//     a
+// }
+
+fn rust_convert_numpy_array_to_1d_vec_char(my_array: ArrayView2<char>) -> Vec<char> {
+    /// Converts a 2d array to a 1 dimensional vec
+    let a = my_array.to_owned().into_raw_vec();
+    a
+}
+
+#[pyfunction]
+fn numpy_convert_to_1d_vec(_py: Python, x: PyReadonlyArray2<i64>) -> PyResult<Vec<char>> {
+    /// Prepare numpy array (2d array with 1 and 0) to vec with chars
+    let a = x.as_array();
+    Ok(rust_convert_numpy_array_to_1d_vec_char(
+        rust_replace_int_with_char(a).view(),
+    ))
+}
+
 /// This module is a python module implemented in Rust.
 /// This function name has to be the same as the lib.name declared in Cargo.toml
 #[pymodule]
@@ -343,6 +378,9 @@ fn my_library(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(numpy_add_value))?;
     m.add_wrapped(wrap_pyfunction!(numpy_add_value_with_return))?;
     m.add_wrapped(wrap_pyfunction!(numpy_calc_sum_of_array))?;
+
+    /// Pathfinding preparation with numpy
+    m.add_wrapped(wrap_pyfunction!(numpy_convert_to_1d_vec))?;
 
     // m.add_wrapped(wrap_pyfunction!(mult_without_return))?;
     // m.add_wrapped(wrap_pyfunction!(mult_with_return))?;
@@ -571,10 +609,11 @@ mod tests {
             let mut a1 = array![[1, 2], [3, 4]];
             let mut a2 = a1.view_mut();
             rust_numpy_add_2d(&mut a2, 2);
-
-            let mut a3 = array![[3, 4], [5, 6]];
-            let a4 = a3.view_mut();
-            assert_eq!(a2, a4);
+            {
+                let mut a3 = array![[3, 4], [5, 6]];
+                let a4 = a3.view_mut();
+                assert_eq!(a2, a4);
+            }
         });
     }
 
@@ -586,24 +625,102 @@ mod tests {
                 let result = array![[3, 4], [5, 6]];
                 let value = 2;
 
-                /// If this fails: need to globally install numpy: pip install numpy
-                let a2 = a1.to_pyarray(py);
-                numpy_add_value_2d(py, a2, value);
-                let a3 = unsafe { a2.as_array() };
-                assert_eq!(a3, result);
-                assert_eq!(a3.sum(), 18);
+                {
+                    /// If this fails: need to globally install numpy: pip install numpy
+                    let a2 = a1.to_pyarray(py);
+                    numpy_add_value_2d(py, a2, value);
+                    let a3 = unsafe { a2.as_array() };
+                    assert_eq!(a3, result);
+                    assert_eq!(a3.sum(), 18);
+                }
 
-                // a1.to_pyarray and PyArray2::from_array() should do the same
-                let a4 = PyArray2::from_array(py, &a1);
-                numpy_add_value_2d(py, a4, value);
-                let a5 = unsafe { a4.as_array() };
-                assert_eq!(a5, result);
+                {
+                    // a1.to_pyarray and PyArray2::from_array() should do the same
+                    let a4 = PyArray2::from_array(py, &a1);
+                    numpy_add_value_2d(py, a4, value);
+                    let a5 = unsafe { a4.as_array() };
+                    assert_eq!(a5, result);
+                }
 
-                // Test conversion: from ndarray to pyarray, and then to ndarray again
-                let a7 = PyArray2::from_array(py, &a1);
-                let a8 = unsafe { a7.as_array() };
-                assert_eq!(a1, a8);
+                {
+                    // Test conversion: from ndarray to pyarray, and then to ndarray again
+                    let a7 = PyArray2::from_array(py, &a1);
+                    let a8 = unsafe { a7.as_array() };
+                    assert_eq!(a1, a8);
+                }
             })
+        });
+    }
+
+    #[bench]
+    fn bench_rust_numpy_conversion_test(b: &mut Bencher) {
+        b.iter(|| {
+            let a1 = array![[1, 1], [0, 0]];
+            let a2 = rust_replace_int_with_char(a1.view());
+            {
+                let temp = array![['.', '.'], ['O', 'O']];
+                assert_eq!(a2, temp);
+            }
+            // {
+            //     let a3 = rust_convert_numpy_array_to_1d_vec(a1.view());
+            //     assert_eq!(a3, vec![1, 1, 0, 0]);
+            // }
+            {
+                let a3 = rust_convert_numpy_array_to_1d_vec_char(a2.view());
+                assert_eq!(a3, vec!['.', '.', 'O', 'O']);
+            }
+        });
+    }
+
+    #[bench]
+    fn bench_rust_moving_ai_map_astar(b: &mut Bencher) {
+        b.iter(|| {
+            let my_map = array![
+                ['O', 'O', 'O', 'O', 'O'],
+                ['O', '.', '.', '.', 'O'],
+                ['O', '.', '.', '.', 'O'],
+                ['O', '.', '.', '.', 'O'],
+                ['O', 'O', 'O', 'O', 'O'],
+            ];
+            // let my_map_1d = Array::from_iter(my_map.iter().cloned());
+            // let my_vec_1d = my_map_1d.to_vec();
+            let my_vec_1d = my_map.into_raw_vec();
+
+            let my_moving_ai_map = MovingAiMap::new(String::from("test"), 5, 5, my_vec_1d);
+            // println!("{:?}", my_vec_1d);
+            if let Some(my_route) = a_star_path(&my_moving_ai_map, (1, 1), (3, 3)) {
+                /// TODO How to allow diagonal movement?
+                let distance = my_route.distance();
+                let path = my_route.steps();
+                assert_eq!(distance, 4.0);
+                assert_eq!(path, vec![(3, 3), (2, 3), (1, 3), (1, 2), (1, 1)]);
+            } else {
+                assert!(false, "Should not fail!")
+            }
+        });
+    }
+
+    #[bench]
+    fn bench_rust_moving_ai_map_jps(b: &mut Bencher) {
+        b.iter(|| {
+            let my_map = array![
+                ['O', 'O', 'O', 'O', 'O'],
+                ['O', '.', '.', '.', 'O'],
+                ['O', '.', '.', '.', 'O'],
+                ['O', '.', '.', '.', 'O'],
+                ['O', 'O', 'O', 'O', 'O'],
+            ];
+            let my_vec_1d = my_map.into_raw_vec();
+            let my_moving_ai_map = MovingAiMap::new(String::from("test"), 5, 5, my_vec_1d);
+            if let Some(my_route) = jps_path(&my_moving_ai_map, (1, 1), (3, 3)) {
+                /// Does diagonal movement
+                let distance = my_route.distance();
+                let path = my_route.steps();
+                assert_eq!(distance, (2.0f64.powi(2) + 2.0f64.powi(2)).sqrt());
+                assert_eq!(path, vec![(3, 3), (2, 2), (1, 1)]);
+            } else {
+                assert!(false, "Should not fail!")
+            }
         });
     }
 }
